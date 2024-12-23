@@ -1,6 +1,7 @@
 const API_KEY = 'c0d87c58'
 const BASE_URL = 'http://www.omdbapi.com/';
 let LIKED_MOVIES = JSON.parse(localStorage.getItem("LIKED_MOVIES")) || [];
+let LINKS_MOVIES = JSON.parse(localStorage.getItem("LINKS_MOVIES")) || [];
 
 class Movie{
     constructor(id,title,year,plot,imdbid,poster){
@@ -97,6 +98,7 @@ class MovieDetails{
         this.actors = actors;
         this.plot = plot;
         this.imdbRating = imdbRating;
+       
     }
 }
 
@@ -111,11 +113,11 @@ class MovieDetails{
  "imdbID":"tt0944947","Type":"series","totalSeasons":"8","Response":"True"}
 */
 
-class MovieDetailsAPI{
-    static async fetchMovieDetails(imdbID){
+class MovieDetailsAPI {
+    static async fetchMovieDetails(imdbID) {
         const response = await fetch(`${BASE_URL}?apikey=${API_KEY}&i=${imdbID}`);
         const data = await response.json();
-        if(data.Response === 'True') {
+        if (data.Response === 'True') {
             return new MovieDetails(
                 data.imdbID,
                 data.Title,
@@ -128,47 +130,158 @@ class MovieDetailsAPI{
                 data.imdbRating
             );
         }
-        return [];
+        return null;
     }
 
     static renderMovieDetails(movie) {
         const isLiked = LIKED_MOVIES.includes(movie.imdbID);
         const likeButtonText = isLiked ? "Unlike" : "Like";
 
+        // Retrieve links for this movie
+        const movieLinks = LINKS_MOVIES.filter(link => link.imdbID === movie.imdbID);
+        const linksHTML = movieLinks.map((link,index) => `
+            <p>
+                <strong>${link.name}:</strong> 
+                <a href="${link.link}" target="_blank">${link.link}</a>
+                <button class="btn btn-danger btn-sm ml-2" id="delete-link-${index}">Delete</button>
+                <button class="btn btn-warning btn-sm ml-2" id="edit-link-${index}">Edit</button>
+            </p>
+        `).join('');
+
+        
 
         const detailsContainer = document.getElementById("movie-details");
         const detailsHTML = `
-            <div class="card" style="width: 28rem;">
+            <div class="card" style="width: 29rem;">
                 <img src="${movie.poster}" class="img-fluid" alt="${movie.title}">
-                        <div class="card-body">
-                        <h5 class="card-title">${movie.title}</h5>
-                        <p class="card-text"><strong>Year:</strong> ${movie.year}</p>
-                        <p class="card-text"><strong>Genre:</strong> ${movie.genre}</p>
-                        <p class="card-text"><strong>Director:</strong> ${movie.director}</p>
-                        <p class="card-text"><strong>Actors:</strong> ${movie.actors}</p>
-                        <p class="card-text"><strong>Plot:</strong> ${movie.plot}</p>
-                        <p class="card-text"><strong>IMDb Rating:</strong> ${movie.imdbRating}</p>
-                        <a href="https://www.imdb.com/title/${movie.imdbID}" target="_blank" class="btn btn-warning">Visit IMDb</a>
-                        <a href="index.html" class="btn btn-info">Back to Search</a>
-                        <button id="likeButton" class="btn btn-success" >${likeButtonText}</button>
-                    </div>
+                <div class="card-body">
+                    <h5 class="card-title">${movie.title}</h5>
+                    <p class="card-text"><strong>Year:</strong> ${movie.year}</p>
+                    <p class="card-text"><strong>Genre:</strong> ${movie.genre}</p>
+                    <p class="card-text"><strong>Director:</strong> ${movie.director}</p>
+                    <p class="card-text"><strong>Actors:</strong> ${movie.actors}</p>
+                    <p class="card-text"><strong>Plot:</strong> ${movie.plot}</p>
+                    <p class="card-text"><strong>IMDb Rating:</strong> ${movie.imdbRating}</p>
+                    <h1 class="display-4">Links:</h1>
+                    ${linksHTML || "<p>No links added yet.</p>"}
+                    <a href="https://www.imdb.com/title/${movie.imdbID}" target="_blank" class="btn btn-warning">Visit IMDb</a>
+                    <a href="index.html" class="btn btn-info">Back to Search</a>
+                    <button id="likeButton" class="btn btn-success">${likeButtonText}</button>
+                    ${isLiked ? '<button id="linkButton" class="btn btn-danger">Add Link</button>' : ''}
+                </div>
             </div>
         `;
         detailsContainer.innerHTML = detailsHTML;
+        
+            // Add event listeners for Delete and Edit buttons
+        movieLinks.forEach((link, index) => {
+            const deleteButton = document.getElementById(`delete-link-${index}`);
+            if (deleteButton) {
+                deleteButton.addEventListener("click", () => {
+                    // Find the actual index in LINKS_MOVIES
+                    const actualIndex = LINKS_MOVIES.findIndex(l => l.imdbID === link.imdbID && l.name === link.name && l.link === link.link);
+        
+                    if (actualIndex !== -1) {
+                        LINKS_MOVIES.splice(actualIndex, 1); // Remove the link
+                        localStorage.setItem("LINKS_MOVIES", JSON.stringify(LINKS_MOVIES));
+                        alert("Link deleted successfully!");
+                        this.renderMovieDetails(movie); // Re-render the details view
+                    }
+                });
+            }
 
+            const editButton = document.getElementById(`edit-link-${index}`);
+            if (editButton) {
+                editButton.addEventListener("click", () => {
+                    // Prompt for new values
+                    const newName = prompt("Enter new name:", link.name);
+                    const newLink = prompt("Enter new link:", link.link);
+        
+                    if (newName && newLink) {
+                        // Find the actual index in LINKS_MOVIES
+                        const actualIndex = LINKS_MOVIES.findIndex(l => l.imdbID === link.imdbID && l.name === link.name && l.link === link.link);
+        
+                        if (actualIndex !== -1) {
+                            // Update the actual link in LINKS_MOVIES
+                            LINKS_MOVIES[actualIndex].name = newName;
+                            LINKS_MOVIES[actualIndex].link = newLink;
+                            localStorage.setItem("LINKS_MOVIES", JSON.stringify(LINKS_MOVIES));
+                            alert("Link updated successfully!");
+                            this.renderMovieDetails(movie); // Re-render the details view
+                        }
+                    } else {
+                        alert("Both fields are required to edit the link.");
+                    }
+                });
+            }
+        });
+
+
+
+        // Handle "Like" button
         const likeButton = document.getElementById("likeButton");
         likeButton.addEventListener("click", () => {
-            if (LIKED_MOVIES.includes(movie.imdbID)){
+            if (LIKED_MOVIES.includes(movie.imdbID)) {
                 LIKED_MOVIES = LIKED_MOVIES.filter(id => id !== movie.imdbID);
+                LINKS_MOVIES = LINKS_MOVIES.filter(link => link.imdbID !== movie.imdbID);
                 localStorage.setItem("LIKED_MOVIES", JSON.stringify(LIKED_MOVIES));
-                likeButton.textContent = "Like";
-            }
-            else {
+                localStorage.setItem("LINKS_MOVIES", JSON.stringify(LINKS_MOVIES));
+            } else {
                 LIKED_MOVIES.push(movie.imdbID);
                 localStorage.setItem("LIKED_MOVIES", JSON.stringify(LIKED_MOVIES));
-                likeButton.textContent = "Unlike";
             }
-            console.log("Liked Movies:", LIKED_MOVIES);
-        })
+            this.renderMovieDetails(movie); // Re-render to update UI
+        });
+
+        // Handle "Add Link" button
+        const linkButton = document.getElementById("linkButton");
+        if (linkButton) {
+            linkButton.addEventListener("click", () => {
+                const form = document.createElement("div");
+                form.id = "linkForm";
+                form.className = "mt-3";
+
+                const linkInput = document.createElement("input");
+                linkInput.type = "text";
+                linkInput.placeholder = "Enter Link";
+                linkInput.className = "form-control mb-2";
+
+                const nameInput = document.createElement("input");
+                nameInput.type = "text";
+                nameInput.placeholder = "Enter Name";
+                nameInput.className = "form-control mb-2";
+
+                const submitButton = document.createElement("button");
+                submitButton.textContent = "Save Link";
+                submitButton.className = "btn btn-primary";
+
+                const cancelButton = document.createElement("button");
+                cancelButton.textContent = "Cancel";
+                cancelButton.className = "btn btn-danger";
+
+                form.appendChild(linkInput);
+                form.appendChild(nameInput);
+                form.appendChild(submitButton);
+                form.appendChild(cancelButton);
+
+                linkButton.parentElement.appendChild(form);
+
+                cancelButton.addEventListener("click", () => form.remove());
+
+                submitButton.addEventListener("click", () => {
+                    const link = linkInput.value;
+                    const name = nameInput.value;
+                    if (link && name) {
+                        LINKS_MOVIES.push({ imdbID: movie.imdbID, name, link });
+                        localStorage.setItem("LINKS_MOVIES", JSON.stringify(LINKS_MOVIES));
+                        alert("Link saved successfully!");
+                        form.remove();
+                        this.renderMovieDetails(movie); // Re-render to show the new link
+                    } else {
+                        alert("Please fill out both fields.");
+                    }
+                });
+            });
+        }
     }
 }
