@@ -181,41 +181,76 @@ class MovieDetailsAPI {
         movieLinks.forEach((link, index) => {
             const deleteButton = document.getElementById(`delete-link-${index}`);
             if (deleteButton) {
-                deleteButton.addEventListener("click", () => {
-                    // Find the actual index in LINKS_MOVIES
-                    const actualIndex = LINKS_MOVIES.findIndex(l => l.imdbID === link.imdbID && l.name === link.name && l.link === link.link);
-        
-                    if (actualIndex !== -1) {
-                        LINKS_MOVIES.splice(actualIndex, 1); // Remove the link
-                        localStorage.setItem("LINKS_MOVIES", JSON.stringify(LINKS_MOVIES));
-                        alert("Link deleted successfully!");
-                        this.renderMovieDetails(movie); // Re-render the details view
-                    }
+            deleteButton.addEventListener("click", async () => {
+                try {
+                const response = await fetch(`/favorites/${movie.imdbID}/links`, {
+                    method: "DELETE",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ name: link.name }), // Pass the link name
                 });
+                const result = await response.json();
+                if (result.success) {
+                    alert("Link deleted successfully!");
+                    LINKS_MOVIES = LINKS_MOVIES.filter(l => l.name !== link.name || l.imdbID !== movie.imdbID);
+                    localStorage.setItem("LINKS_MOVIES", JSON.stringify(LINKS_MOVIES));
+                    MovieDetailsAPI.renderMovieDetails(movie); // Refresh UI
+                } else {
+                    alert(result.message);
+                }
+                } catch (error) {
+                console.error("Error deleting link:", error);
+                alert("Failed to delete link.");
+                }
+            });
             }
 
             const editButton = document.getElementById(`edit-link-${index}`);
-            if (editButton) {
-                editButton.addEventListener("click", () => {
-                    // Prompt for new values
-                    const newName = prompt("Enter new name:", link.name);
-                    const newLink = prompt("Enter new link:", link.link);
-        
-                    if (newName && newLink) {
-                        // Find the actual index in LINKS_MOVIES
-                        const actualIndex = LINKS_MOVIES.findIndex(l => l.imdbID === link.imdbID && l.name === link.name && l.link === link.link);
-        
-                        if (actualIndex !== -1) {
-                            // Update the actual link in LINKS_MOVIES
-                            LINKS_MOVIES[actualIndex].name = newName;
-                            LINKS_MOVIES[actualIndex].link = newLink;
-                            localStorage.setItem("LINKS_MOVIES", JSON.stringify(LINKS_MOVIES));
-                            alert("Link updated successfully!");
-                            this.renderMovieDetails(movie); // Re-render the details view
-                        }
-                    } else {
-                        alert("Both fields are required to edit the link.");
-                    }
+  if (editButton) {
+    editButton.addEventListener("click", () => {
+      // Show a prompt to edit the link details
+      const newName = prompt("Enter new name:", link.name);
+      const newUrl = prompt("Enter new URL:", link.url);
+      const newDescription = prompt("Enter new description:", link.description || "");
+
+      if (newName && newUrl) {
+        // Send the updated data to the server
+        fetch(`/favorites/${movie.imdbID}/links`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: link.name, // Current name to identify the link
+            newName,
+            newUrl,
+            newDescription,
+          }),
+        })
+          .then(response => response.json())
+          .then(result => {
+            if (result.success) {
+              alert("Link updated successfully!");
+              // Update the local storage
+              const actualIndex = LINKS_MOVIES.findIndex(
+                l => l.imdbID === movie.imdbID && l.name === link.name && l.link === link.link
+              );
+              if (actualIndex !== -1) {
+                LINKS_MOVIES[actualIndex].name = newName;
+                LINKS_MOVIES[actualIndex].link = newUrl;
+                LINKS_MOVIES[actualIndex].description = newDescription;
+                localStorage.setItem("LINKS_MOVIES", JSON.stringify(LINKS_MOVIES));
+              }
+              // Re-render the movie details to show the updated link
+              MovieDetailsAPI.renderMovieDetails(movie);
+            } else {
+              alert(result.message);
+            }
+          })
+          .catch(error => {
+            console.error("Error updating link:", error);
+            alert("Failed to update link.");
+          });
+      } else {
+        alert("Name and URL are required to edit the link.");
+      }
                 });
             }
         });
@@ -309,15 +344,32 @@ class MovieDetailsAPI {
 
                 cancelButton.addEventListener("click", () => form.remove());
 
-                submitButton.addEventListener("click", () => {
+                submitButton.addEventListener("click", async () => {
                     const link = linkInput.value;
                     const name = nameInput.value;
+                    const description = "Custom description"; // You can allow user input if needed
+                
                     if (link && name) {
-                        LINKS_MOVIES.push({ imdbID: movie.imdbID, name, link });
-                        localStorage.setItem("LINKS_MOVIES", JSON.stringify(LINKS_MOVIES));
-                        alert("Link saved successfully!");
-                        form.remove();
-                        this.renderMovieDetails(movie); // Re-render to show the new link
+                        try {
+                            const response = await fetch(`/favorites/${movie.imdbID}/links`, {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ name, url: link, description }),
+                            });
+                            const result = await response.json();
+                            if (result.success) {
+                                alert("Link saved successfully!");
+                                LINKS_MOVIES.push({ imdbID: movie.imdbID, name, link });
+                                localStorage.setItem("LINKS_MOVIES", JSON.stringify(LINKS_MOVIES));
+                                form.remove();
+                                MovieDetailsAPI.renderMovieDetails(movie); // Refresh UI
+                            } else {
+                                alert(result.message);
+                            }
+                        } catch (error) {
+                            console.error("Error adding link:", error);
+                            alert("Failed to save link.");
+                        }
                     } else {
                         alert("Please fill out both fields.");
                     }

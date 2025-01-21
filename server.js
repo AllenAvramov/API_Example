@@ -84,13 +84,21 @@ app.post("/favorites", isAuthenticated, (req, res) => {
   const { movieId } = req.body;
 
   const user = users.find(user => user.email === email);
-  if (user && !user.favorites.includes(movieId)) {
-      user.favorites.push(movieId);
-      saveUsers();
-      return res.json({ success: true, message: "Movie added to favorites." });
+  if (!user) {
+    return res.status(404).json({ success: false, message: "User not found." });
   }
 
-  res.json({ success: false, message: "Movie already in favorites or user not found." });
+  // Check if movie already exists in favorites
+  const existingMovie = user.favorites.find(fav => fav.movieId === movieId);
+  if (existingMovie) {
+    return res.json({ success: false, message: "Movie already in favorites." });
+  }
+
+  // Add the movie as an object with a movieId and an empty links array
+  user.favorites.push({ movieId, links: [] });
+  saveUsers();
+
+  res.json({ success: true, message: "Movie added to favorites." });
 });
 
 // Remove movie from favorites
@@ -128,8 +136,123 @@ app.get("/favorites", isAuthenticated, (req, res) => {
 
 
 
+// Add a link to a specific movie in favorites
+app.post("/favorites/:movieId/links", isAuthenticated, (req, res) => {
+  const { email } = req.session.user;
+  const { movieId } = req.params;
+  const { name, url, description } = req.body;
+
+  if (!name || !url) {
+    return res.json({ success: false, message: "Name and URL are required." });
+  }
+
+  const user = users.find(user => user.email === email);
+  if (!user) {
+    return res.status(404).json({ success: false, message: "User not found." });
+  }
+
+  const movie = user.favorites.find(fav => fav.movieId === movieId);
+  if (!movie) {
+    return res.status(404).json({ success: false, message: "Movie not found in favorites." });
+  }
+
+  // Add the link to the movie's links array
+  movie.links.push({ name, url, description });
+  saveUsers();
+
+  res.json({ success: true, message: "Link added successfully." });
+});
 
 
+
+// Remove a link from a specific movie in favorites
+app.delete("/favorites/:movieId/links", isAuthenticated, (req, res) => {
+  const { email } = req.session.user;
+  const { movieId } = req.params;
+  const { name } = req.body; // Assuming the link name is sent in the body to identify it
+
+  const user = users.find(user => user.email === email);
+  if (!user) {
+    return res.status(404).json({ success: false, message: "User not found." });
+  }
+
+  // Find the movie in the user's favorites
+  const movie = user.favorites.find(fav => fav.movieId === movieId);
+  if (!movie) {
+    return res.status(404).json({ success: false, message: "Movie not found in favorites." });
+  }
+
+  // Find and remove the link by name
+  const initialLength = movie.links.length;
+  movie.links = movie.links.filter(link => link.name !== name);
+
+  // Check if the link was actually removed
+  if (movie.links.length === initialLength) {
+    return res.status(404).json({ success: false, message: "Link not found." });
+  }
+
+  // Save the updated user data
+  saveUsers();
+
+  res.json({ success: true, message: "Link removed successfully." });
+});
+
+// Get links for a specific movie in favorites
+app.get("/favorites/:movieId/links", isAuthenticated, (req, res) => {
+  const { email } = req.session.user;
+  const { movieId } = req.params;
+
+  const user = users.find(user => user.email === email);
+  if (!user) {
+    return res.status(404).json({ success: false, message: "User not found." });
+  }
+
+  const movie = user.favorites.find(fav => fav.movieId === movieId);
+  if (!movie || !movie.links) {
+    return res.json({ success: true, links: [] }); // No links yet
+  }
+
+  res.json({ success: true, links: movie.links });
+});
+
+
+// Edit a link for a specific movie in favorites
+app.put("/favorites/:movieId/links", isAuthenticated, (req, res) => {
+  const { email } = req.session.user;
+  const { movieId } = req.params;
+  const { name, newName, newUrl, newDescription } = req.body;
+
+  if (!name || !newName || !newUrl) {
+    return res.json({ success: false, message: "All fields are required." });
+  }
+
+  const user = users.find(user => user.email === email);
+  if (!user) {
+    return res.status(404).json({ success: false, message: "User not found." });
+  }
+
+  // Find the movie in the user's favorites
+  const movie = user.favorites.find(fav => fav.movieId === movieId);
+  if (!movie) {
+    return res.status(404).json({ success: false, message: "Movie not found in favorites." });
+  }
+
+  // Find the link to update
+  const link = movie.links.find(link => link.name === name);
+  if (!link) {
+    return res.status(404).json({ success: false, message: "Link not found." });
+  }
+
+  // Update the link details
+  link.name = newName;
+  link.url = newUrl;
+  link.description = newDescription || link.description; // Optional field
+
+  // Save the updated user data
+  saveUsers();
+
+  res.json({ success: true, message: "Link updated successfully." });
+});
 
 
 

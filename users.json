@@ -1,37 +1,29 @@
 [
   {
-    "name": "ALlen",
+    "name": "Allen",
     "email": "a@gmail.com",
     "password": "Allen1",
     "favorites": [
-      "tt0120737",
-      "tt0167260",
-      "tt0167261"
+      {
+        "movieId": "tt0120737",
+        "links": []
+      },
+      {
+        "movieId": "tt0167261",
+        "links": [
+          {
+            "name": "w",
+            "url": "w",
+            "description": "w"
+          }
+        ]
+      }
     ]
   },
   {
-    "name": "Lior",
+    "name": "l",
     "email": "l@gmail.com",
     "password": "Allen1",
-    "favorites": [
-      "tt1201607"
-    ]
-  },
-  {
-    "name": "Lior",
-    "email": "li@gmail.com",
-    "password": "Allen1",
-    "favorites": [
-      "tt0241527"
-    ],
-    "links": []
-  },
-  {
-    "name": "Lior",
-    "email": "lior@gmail.com",
-    "password": "Allen1",
-    "favorites": [
-      "tt0926084"
-    ]
+    "favorites": []
   }
 ]
