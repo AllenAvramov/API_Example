@@ -1,28 +1,24 @@
 [
   {
-    "name": "Allen",
-    "email": "a@gmail.com",
+    "name": "Allen Avramov",
+    "email": "allen@gmail.com",
     "password": "Allen1",
     "favorites": [
       {
         "movieId": "tt0120737",
-        "links": []
-      },
-      {
-        "movieId": "tt0167261",
         "links": [
           {
-            "name": "w",
-            "url": "w",
-            "description": "w"
+            "name": "Youtube",
+            "url": "https://www.youtube.com/watch?v=LbfMDwc4azU",
+            "description": "Custom description"
           }
         ]
       }
     ]
   },
   {
-    "name": "l",
-    "email": "l@gmail.com",
+    "name": "Lior Nahon",
+    "email": "lior@gmail.com",
     "password": "Allen1",
     "favorites": []
   }

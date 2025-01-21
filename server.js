@@ -103,29 +103,40 @@ app.post("/favorites", isAuthenticated, (req, res) => {
 
 // Remove movie from favorites
 app.delete("/favorites", isAuthenticated, (req, res) => {
-  const { email } = req.session.user;
-  const { movieId } = req.body;
+  const { email } = req.session.user; // Logged-in user's email
+  const { movieId } = req.body; // Movie ID to remove
 
   const user = users.find(user => user.email === email);
-  if (user && user.favorites.includes(movieId)) {
-      user.favorites = user.favorites.filter(id => id !== movieId);
-      saveUsers();
-      return res.json({ success: true, message: "Movie removed from favorites." });
+  if (!user) {
+    return res.status(404).json({ success: false, message: "User not found." });
   }
 
-  res.json({ success: false, message: "Movie not found in favorites or user not found." });
+  // Find the movie in the user's favorites
+  const initialLength = user.favorites.length;
+  user.favorites = user.favorites.filter(fav => fav.movieId !== movieId);
+
+  // Check if a movie was actually removed
+  if (user.favorites.length === initialLength) {
+    return res.status(404).json({ success: false, message: "Movie not found in favorites." });
+  }
+
+  saveUsers(); // Save updated data
+  res.json({ success: true, message: "Movie removed from favorites." });
 });
 
 // Get favorite movies for the logged-in user
 app.get("/favorites", isAuthenticated, (req, res) => {
-  const { email } = req.session.user; // Assuming user session contains email
-  const user = users.find((user) => user.email === email);
+  const { email } = req.session.user;
 
-  if (user) {
-    res.json({ success: true, favorites: user.favorites });
-  } else {
-    res.status(404).json({ success: false, message: "User not found." });
+  const user = users.find(user => user.email === email);
+  if (!user) {
+    return res.status(404).json({ success: false, message: "User not found." });
   }
+
+  // Extract movie IDs from the user's favorites
+  const favoriteMovieIDs = user.favorites.map(fav => fav.movieId);
+
+  res.json({ success: true, favorites: favoriteMovieIDs });
 });
 
 
