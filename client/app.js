@@ -168,11 +168,11 @@ class MovieDetailsAPI {
                     <a href="https://www.imdb.com/title/${movie.imdbID}" target="_blank" class="btn btn-warning">Visit IMDb</a>
                     <a href="index.html" class="btn btn-info">to Search</a>
                     <button id="likeButton" class="btn btn-success">${likeButtonText}</button>
-                    ${isLiked ? '<button id="linkButton" class="btn btn-danger">Add Link</button>' : ''}
+                    ${isLiked ? '<button id="addLinkButton" class="btn btn-danger">Add Link</button>' : ''}
                 </div>
             </div>
         </div>
-        `;
+      `;
         detailsContainer.innerHTML = detailsHTML;
 
 
@@ -274,55 +274,65 @@ class MovieDetailsAPI {
             }
         });
 
-        // Handle "Add Link" button
-        const linkButton = document.getElementById("linkButton");
-        if (linkButton) {
-            linkButton.addEventListener("click", () => {
-                const form = document.createElement("div");
-                form.id = "linkForm";
-                form.className = "mt-3";
-
-                const linkInput = document.createElement("input");
-                linkInput.type = "text";
-                linkInput.placeholder = "Enter Link";
-                linkInput.className = "form-control mb-2";
-
-                const nameInput = document.createElement("input");
-                nameInput.type = "text";
-                nameInput.placeholder = "Enter Name";
-                nameInput.className = "form-control mb-2";
-
-                const submitButton = document.createElement("button");
-                submitButton.textContent = "Save Link";
-                submitButton.className = "btn btn-primary";
-
-                const cancelButton = document.createElement("button");
-                cancelButton.textContent = "Cancel";
-                cancelButton.className = "btn btn-danger";
-
-                form.appendChild(linkInput);
-                form.appendChild(nameInput);
-                form.appendChild(submitButton);
-                form.appendChild(cancelButton);
-
-                linkButton.parentElement.appendChild(form);
-
-                cancelButton.addEventListener("click", () => form.remove());
-
-                submitButton.addEventListener("click", () => {
-                    const link = linkInput.value;
-                    const name = nameInput.value;
-                    if (link && name) {
-                        LINKS_MOVIES.push({ imdbID: movie.imdbID, name, link });
-                        localStorage.setItem("LINKS_MOVIES", JSON.stringify(LINKS_MOVIES));
-                        alert("Link saved successfully!");
-                        form.remove();
-                        this.renderMovieDetails(movie); // Re-render to show the new link
-                    } else {
-                        alert("Please fill out both fields.");
-                    }
+        document.getElementById("addLinkButton")?.addEventListener("click", () => {
+            const form = document.createElement("div");
+            form.className = "mt-3";
+          
+            const nameInput = document.createElement("input");
+            nameInput.type = "text";
+            nameInput.placeholder = "Link Name";
+            nameInput.className = "form-control mb-2";
+          
+            const urlInput = document.createElement("input");
+            urlInput.type = "text";
+            urlInput.placeholder = "Link URL";
+            urlInput.className = "form-control mb-2";
+          
+            const descriptionInput = document.createElement("textarea");
+            descriptionInput.placeholder = "Description";
+            descriptionInput.className = "form-control mb-2";
+          
+            const saveButton = document.createElement("button");
+            saveButton.textContent = "Save";
+            saveButton.className = "btn btn-primary me-2";
+          
+            const cancelButton = document.createElement("button");
+            cancelButton.textContent = "Cancel";
+            cancelButton.className = "btn btn-danger";
+          
+            form.append(nameInput, urlInput, descriptionInput, saveButton, cancelButton);
+            document.querySelector(".card-body").appendChild(form);
+          
+            cancelButton.addEventListener("click", () => form.remove());
+          
+            saveButton.addEventListener("click", async () => {
+              const name = nameInput.value;
+              const url = urlInput.value;
+              const description = descriptionInput.value;
+          
+              if (name && url) {
+                try {
+                  const response = await fetch("/add-link", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ imdbID: movie.imdbID, name, url, description }),
+                  });
+                  const result = await response.json();
+          
+                  if (result.success) {
+                    alert("Link added successfully!");
+                    form.remove();
+                    // Optionally refresh the links
+                  } else {
+                    alert("Failed to add link: " + result.message);
+                  }
+                } catch (error) {
+                  console.error("Error adding link:", error);
+                }
+              } else {
+                alert("Please fill out all fields.");
+              }
                 });
             });
         }
     }
-}
