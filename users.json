@@ -5,14 +5,8 @@
     "password": "Allen1",
     "favorites": [
       {
-        "movieId": "tt0120737",
-        "links": [
-          {
-            "name": "Youtube",
-            "url": "https://www.youtube.com/watch?v=LbfMDwc4azU",
-            "description": "Custom description"
-          }
-        ]
+        "movieId": "tt0167260",
+        "links": []
       }
     ]
   },
@@ -20,6 +14,17 @@
     "name": "Lior Nahon",
     "email": "lior@gmail.com",
     "password": "Allen1",
-    "favorites": []
+    "favorites": [
+      {
+        "movieId": "tt0399295",
+        "links": [
+          {
+            "name": "dsadsa",
+            "url": "dead",
+            "description": "Custom description"
+          }
+        ]
+      }
+    ]
   }
 ]
