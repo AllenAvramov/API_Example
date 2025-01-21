@@ -1,0 +1,24 @@
+[
+  {
+    "name": "Allen Avramov",
+    "email": "a@gmail.com",
+    "password": "Allen1",
+    "favorites": [
+      "tt0167261",
+      "tt0399295"
+    ]
+  },
+  {
+    "name": "Lior Nahon",
+    "email": "l@gmail.com",
+    "password": "Lior19",
+    "favorites": [
+      "tt1201607",
+      "tt0241527",
+      "tt0304141",
+      "tt0295297",
+      "tt6263850",
+      "tt29623480"
+    ]
+  }
+]
