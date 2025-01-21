@@ -1,10 +1,37 @@
 [
   {
-    "name": "Allen",
+    "name": "ALlen",
     "email": "a@gmail.com",
     "password": "Allen1",
     "favorites": [
+      "tt0120737",
+      "tt0167260",
+      "tt0167261"
+    ]
+  },
+  {
+    "name": "Lior",
+    "email": "l@gmail.com",
+    "password": "Allen1",
+    "favorites": [
+      "tt1201607"
+    ]
+  },
+  {
+    "name": "Lior",
+    "email": "li@gmail.com",
+    "password": "Allen1",
+    "favorites": [
       "tt0241527"
+    ],
+    "links": []
+  },
+  {
+    "name": "Lior",
+    "email": "lior@gmail.com",
+    "password": "Allen1",
+    "favorites": [
+      "tt0926084"
     ]
   }
 ]
