@@ -152,261 +152,280 @@ class MovieDetailsAPI {
         return null;
     }
 
-    static renderMovieDetails(movie) {
+
+    // NEW: fetch the links for this movie (server-side returns only what the user can see)
+    static async fetchMovieLinks(imdbID) {
+        const response = await fetch(`/favorites/${imdbID}/links`, {
+          method: "GET",
+          credentials: "include",
+        });
+        const result = await response.json();
+        if (!result.success) {
+          throw new Error(result.message || "Failed to fetch links.");
+        }
+        // result.links is an array of { name, url, description, isPublic }
+        return result.links;
+      }
+    
+      // We modify renderMovieDetails to accept the array of links we fetched
+      static renderMovieDetails(movie, links) {
+        // Instead of relying on a local LINKS_MOVIES array, use the links param
+        // which is the server’s filtered list of public or private links.
+    
         const isLiked = LIKED_MOVIES.includes(movie.imdbID);
         const likeButtonText = isLiked ? "Unlike" : "Like";
-
-        // Retrieve links for this movie
-        const movieLinks = LINKS_MOVIES.filter(link => link.imdbID === movie.imdbID);
-        const linksHTML = movieLinks.map((link,index) => `
-            <p>
-                <strong>${link.name}:</strong> 
-                <a href="${link.link}" target="_blank">${link.link}</a>
-                <button class="btn btn-danger btn-sm ml-2" id="delete-link-${index}">Delete</button>
-                <button class="btn btn-warning btn-sm ml-2" id="edit-link-${index}">Edit</button>
-            </p>
+    
+        // Build HTML for each link
+        const linksHTML = links.map((link, index) => `
+          <p>
+            <strong>${link.name}:</strong>
+            <a href="${link.url}" target="_blank">${link.url}</a>
+            <button class="btn btn-danger btn-sm ml-2" id="delete-link-${index}">Delete</button>
+            <button class="btn btn-warning btn-sm ml-2" id="edit-link-${index}">Edit</button>
+            ${link.isPublic ? `<span class="badge badge-success ml-2">Public</span>` 
+                            : `<span class="badge badge-secondary ml-2">Private</span>`}
+          </p>
         `).join('');
-
-        
-
+    
         const detailsContainer = document.getElementById("movie-details");
         const detailsHTML = `
-        <div class="row justify-content-center">
+          <div class="row justify-content-center">
             <div class="card" style="width: 29rem;">
-                <img src="${movie.poster}" class="img-fluid" alt="${movie.title}">
-                <div class="card-body">
-                    <h5 class="card-title">${movie.title}</h5>
-                    <p class="card-text"><strong>Year:</strong> ${movie.year}</p>
-                    <p class="card-text"><strong>Genre:</strong> ${movie.genre}</p>
-                    <p class="card-text"><strong>Director:</strong> ${movie.director}</p>
-                    <p class="card-text"><strong>Actors:</strong> ${movie.actors}</p>
-                    <p class="card-text"><strong>Plot:</strong> ${movie.plot}</p>
-                    <p class="card-text"><strong>IMDb Rating:</strong> ${movie.imdbRating}</p>
-                    <h1 class="display-4">Links:</h1>
-                    ${linksHTML || "<p>No links added yet.</p>"}
-                    <a href="https://www.imdb.com/title/${movie.imdbID}" target="_blank" class="btn btn-warning">Visit IMDb</a>
-                    <a href="index.html" class="btn btn-info">to Search</a>
-                    <button id="likeButton" class="btn btn-success">${likeButtonText}</button>
-                    ${isLiked ? '<button id="linkButton" class="btn btn-danger">Add Link</button>' : ''}
-                </div>
+              <img src="${movie.poster}" class="img-fluid" alt="${movie.title}">
+              <div class="card-body">
+                <h5 class="card-title">${movie.title}</h5>
+                <p class="card-text"><strong>Year:</strong> ${movie.year}</p>
+                <p class="card-text"><strong>Genre:</strong> ${movie.genre}</p>
+                <p class="card-text"><strong>Director:</strong> ${movie.director}</p>
+                <p class="card-text"><strong>Actors:</strong> ${movie.actors}</p>
+                <p class="card-text"><strong>Plot:</strong> ${movie.plot}</p>
+                <p class="card-text"><strong>IMDb Rating:</strong> ${movie.imdbRating}</p>
+                <h1 class="display-4">Links:</h1>
+                ${linksHTML || "<p>No links added yet.</p>"}
+                <a href="https://www.imdb.com/title/${movie.imdbID}" target="_blank" class="btn btn-warning">Visit IMDb</a>
+                <a href="index.html" class="btn btn-info">to Search</a>
+                <button id="likeButton" class="btn btn-success">${likeButtonText}</button>
+                ${
+                  isLiked
+                    ? `<button id="linkButton" class="btn btn-danger">Add Link</button>`
+                    : ""
+                }
+              </div>
             </div>
-        </div>
+          </div>
         `;
         detailsContainer.innerHTML = detailsHTML;
-
-
-        
-            // Add event listeners for Delete and Edit buttons
-        movieLinks.forEach((link, index) => {
-            const deleteButton = document.getElementById(`delete-link-${index}`);
-            if (deleteButton) {
+    
+        // Attach events
+        this.attachLikeHandler(movie);
+        if (isLiked) {
+          this.attachAddLinkHandler(movie);
+        }
+        this.attachDeleteAndEditHandlers(movie, links);
+      }
+    
+      static attachDeleteAndEditHandlers(movie, links) {
+        links.forEach((link, index) => {
+          const deleteButton = document.getElementById(`delete-link-${index}`);
+          if (deleteButton) {
             deleteButton.addEventListener("click", async () => {
-                try {
+              try {
                 const response = await fetch(`/favorites/${movie.imdbID}/links`, {
-                    method: "DELETE",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ name: link.name }), // Pass the link name
+                  method: "DELETE",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ name: link.name }), // identifying link by name
+                  credentials: "include"
                 });
                 const result = await response.json();
                 if (result.success) {
-                    alert("Link deleted successfully!");
-                    LINKS_MOVIES = LINKS_MOVIES.filter(l => l.name !== link.name || l.imdbID !== movie.imdbID);
-                    localStorage.setItem("LINKS_MOVIES", JSON.stringify(LINKS_MOVIES));
-                    MovieDetailsAPI.renderMovieDetails(movie); // Refresh UI
+                  alert("Link deleted successfully!");
+                  // Refresh the list from the server:
+                  const updatedLinks = await this.fetchMovieLinks(movie.imdbID);
+                  this.renderMovieDetails(movie, updatedLinks);
                 } else {
-                    alert(result.message);
+                  alert(result.message || "Failed to delete link");
                 }
-                } catch (error) {
+              } catch (error) {
                 console.error("Error deleting link:", error);
                 alert("Failed to delete link.");
-                }
-            });
-            }
-
-            const editButton = document.getElementById(`edit-link-${index}`);
-  if (editButton) {
-    editButton.addEventListener("click", () => {
-      // Show a prompt to edit the link details
-      const newName = prompt("Enter new name:", link.name);
-      const newUrl = prompt("Enter new URL:", link.url);
-      const newDescription = prompt("Enter new description:", link.description || "");
-
-      if (newName && newUrl) {
-        // Send the updated data to the server
-        fetch(`/favorites/${movie.imdbID}/links`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name: link.name, // Current name to identify the link
-            newName,
-            newUrl,
-            newDescription,
-          }),
-        })
-          .then(response => response.json())
-          .then(result => {
-            if (result.success) {
-              alert("Link updated successfully!");
-              // Update the local storage
-              const actualIndex = LINKS_MOVIES.findIndex(
-                l => l.imdbID === movie.imdbID && l.name === link.name && l.link === link.link
-              );
-              if (actualIndex !== -1) {
-                LINKS_MOVIES[actualIndex].name = newName;
-                LINKS_MOVIES[actualIndex].link = newUrl;
-                LINKS_MOVIES[actualIndex].description = newDescription;
-                localStorage.setItem("LINKS_MOVIES", JSON.stringify(LINKS_MOVIES));
               }
-              // Re-render the movie details to show the updated link
-              MovieDetailsAPI.renderMovieDetails(movie);
-            } else {
-              alert(result.message);
-            }
-          })
-          .catch(error => {
-            console.error("Error updating link:", error);
-            alert("Failed to update link.");
-          });
-      } else {
-        alert("Name and URL are required to edit the link.");
-      }
-                });
-            }
+            });
+          }
+    
+          const editButton = document.getElementById(`edit-link-${index}`);
+          if (editButton) {
+            editButton.addEventListener("click", async () => {
+              const newName = prompt("Enter new name:", link.name);
+              const newUrl = prompt("Enter new URL:", link.url);
+              const newDescription = prompt("Enter new description:", link.description || "");
+    
+              if (newName && newUrl) {
+                try {
+                  const response = await fetch(`/favorites/${movie.imdbID}/links`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      name: link.name,  // the current name
+                      newName,
+                      newUrl,
+                      newDescription,
+                    }),
+                    credentials: "include"
+                  });
+                  const result = await response.json();
+                  if (result.success) {
+                    alert("Link updated successfully!");
+                    // Re-fetch updated links from the server
+                    const updatedLinks = await this.fetchMovieLinks(movie.imdbID);
+                    this.renderMovieDetails(movie, updatedLinks);
+                  } else {
+                    alert(result.message || "Failed to update link.");
+                  }
+                } catch (error) {
+                  console.error("Error updating link:", error);
+                  alert("Failed to update link.");
+                }
+              } else {
+                alert("Name and URL are required to edit the link.");
+              }
+            });
+          }
         });
-
-
-
-        // Handle "Like" button
+      }
+    
+      static attachAddLinkHandler(movie) {
+        const linkButton = document.getElementById("linkButton");
+        if (!linkButton) return;
+    
+        linkButton.addEventListener("click", () => {
+          const form = document.createElement("div");
+          form.id = "linkForm";
+          form.className = "mt-3";
+    
+          const checkboxLabel = document.createElement("label");
+          checkboxLabel.textContent = "Make link public? ";
+    
+          const checkbox = document.createElement("input");
+          checkbox.type = "checkbox";
+          checkbox.className = "mb-2 ml-2";
+    
+          checkboxLabel.appendChild(checkbox);
+          form.appendChild(checkboxLabel);
+    
+          const linkInput = document.createElement("input");
+          linkInput.type = "text";
+          linkInput.placeholder = "Enter Link (URL)";
+          linkInput.className = "form-control mb-2";
+    
+          const nameInput = document.createElement("input");
+          nameInput.type = "text";
+          nameInput.placeholder = "Enter Link Name";
+          nameInput.className = "form-control mb-2";
+    
+          const descInput = document.createElement("input");
+          descInput.type = "text";
+          descInput.placeholder = "Enter Description";
+          descInput.className = "form-control mb-2";
+    
+          const submitButton = document.createElement("button");
+          submitButton.textContent = "Save Link";
+          submitButton.className = "btn btn-primary mr-2";
+    
+          const cancelButton = document.createElement("button");
+          cancelButton.textContent = "Cancel";
+          cancelButton.className = "btn btn-danger";
+    
+          form.appendChild(linkInput);
+          form.appendChild(nameInput);
+          form.appendChild(descInput);
+          form.appendChild(submitButton);
+          form.appendChild(cancelButton);
+    
+          linkButton.parentElement.appendChild(form);
+    
+          cancelButton.addEventListener("click", () => form.remove());
+    
+          submitButton.addEventListener("click", async () => {
+            const url = linkInput.value.trim();
+            const name = nameInput.value.trim();
+            const description = descInput.value.trim();
+            const isPublic = checkbox.checked;
+    
+            if (url && name) {
+              try {
+                const response = await fetch(`/favorites/${movie.imdbID}/links`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ name, url, description, isPublic }),
+                  credentials: "include"
+                });
+                const result = await response.json();
+                if (result.success) {
+                  alert("Link saved successfully!");
+                  form.remove();
+                  // Re-fetch updated links from the server
+                  const updatedLinks = await this.fetchMovieLinks(movie.imdbID);
+                  this.renderMovieDetails(movie, updatedLinks);
+                } else {
+                  alert(result.message || "Failed to add link.");
+                }
+              } catch (error) {
+                console.error("Error adding link:", error);
+                alert("Failed to save link.");
+              }
+            } else {
+              alert("Please fill out both the Link (URL) and the Link Name fields.");
+            }
+          });
+        });
+      }
+    
+      static attachLikeHandler(movie) {
         const likeButton = document.getElementById("likeButton");
         likeButton.addEventListener("click", async () => {
-            try {
-                if (LIKED_MOVIES.includes(movie.imdbID)) {
-                    // Remove movie from local favorites
-                    LIKED_MOVIES = LIKED_MOVIES.filter(id => id !== movie.imdbID);
-                    LINKS_MOVIES = LINKS_MOVIES.filter(link => link.imdbID !== movie.imdbID);
-
-                    // Update local storage
-                    localStorage.setItem("LIKED_MOVIES", JSON.stringify(LIKED_MOVIES));
-                    localStorage.setItem("LINKS_MOVIES", JSON.stringify(LINKS_MOVIES));
-
-                    // Update server-side favorites
-                    const response = await fetch("/favorites", {
-                        method: "DELETE",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ movieId: movie.imdbID }),
-                    });
-
-                    const result = await response.json();
-                    if (!result.success) {
-                        alert("Failed to remove movie from favorites on the server.");
-                    }
-                } else {
-                    // Add movie to local favorites
-                    LIKED_MOVIES.push(movie.imdbID);
-
-                    // Update local storage
-                    localStorage.setItem("LIKED_MOVIES", JSON.stringify(LIKED_MOVIES));
-
-                    // Update server-side favorites
-                    const response = await fetch("/favorites", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ movieId: movie.imdbID }),
-                    });
-
-                    const result = await response.json();
-                    if (!result.success) {
-                        alert("Failed to add movie to favorites on the server.");
-                    }
-                }
-
-                // Re-render to update UI
-                this.renderMovieDetails(movie);
-            } catch (error) {
-                console.error("Error updating favorites:", error);
-                alert("An error occurred while updating favorites.");
+          try {
+            if (LIKED_MOVIES.includes(movie.imdbID)) {
+              // Unlike (remove from favorites)
+              LIKED_MOVIES = LIKED_MOVIES.filter(id => id !== movie.imdbID);
+    
+              // Update server
+              const response = await fetch("/favorites", {
+                method: "DELETE",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ movieId: movie.imdbID }),
+                credentials: "include"
+              });
+              const result = await response.json();
+              if (!result.success) {
+                alert("Failed to remove movie from favorites on the server.");
+              }
+            } else {
+              // Like (add to favorites)
+              LIKED_MOVIES.push(movie.imdbID);
+    
+              // Update server
+              const response = await fetch("/favorites", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ movieId: movie.imdbID }),
+                credentials: "include"
+              });
+              const result = await response.json();
+              if (!result.success) {
+                alert("Failed to add movie to favorites on the server.");
+              }
             }
+            // Re-render (first fetch new links if user newly liked the movie)
+            let links = [];
+            if (LIKED_MOVIES.includes(movie.imdbID)) {
+              links = await this.fetchMovieLinks(movie.imdbID);
+            }
+            this.renderMovieDetails(movie, links);
+          } catch (error) {
+            console.error("Error updating favorites:", error);
+            alert("An error occurred while updating favorites.");
+          }
         });
-
-        // Handle "Add Link" button
-        const linkButton = document.getElementById("linkButton");
-        if (linkButton) {
-            linkButton.addEventListener("click", () => {
-                const form = document.createElement("div");
-                form.id = "linkForm";
-                form.className = "mt-3";
-
-
-
-                const checkboxLabel = document.createElement("label");
-                checkboxLabel.textContent = "Make link public? ";
-
-                const checkbox = document.createElement("input");
-                checkbox.type = "checkbox";
-                checkbox.className = "mb-2 ml-2";
-
-                checkboxLabel.appendChild(checkbox);
-                form.appendChild(checkboxLabel);
-
-
-                const linkInput = document.createElement("input");
-                linkInput.type = "text";
-                linkInput.placeholder = "Enter Link";
-                linkInput.className = "form-control mb-2";
-
-                const nameInput = document.createElement("input");
-                nameInput.type = "text";
-                nameInput.placeholder = "Enter Name";
-                nameInput.className = "form-control mb-2";
-
-                const submitButton = document.createElement("button");
-                submitButton.textContent = "Save Link";
-                submitButton.className = "btn btn-primary";
-
-                const cancelButton = document.createElement("button");
-                cancelButton.textContent = "Cancel";
-                cancelButton.className = "btn btn-danger";
-
-                form.appendChild(linkInput);
-                form.appendChild(nameInput);
-                form.appendChild(submitButton);
-                form.appendChild(cancelButton);
-
-                linkButton.parentElement.appendChild(form);
-
-                cancelButton.addEventListener("click", () => form.remove());
-
-                submitButton.addEventListener("click", async () => {
-                    const link = linkInput.value;
-                    const name = nameInput.value;
-                    const description = "Custom description"; // You can allow user input if needed
-                    const isPublic = checkbox.checked;
-                    if (link && name) {
-                        try {
-                            const response = await fetch(`/favorites/${movie.imdbID}/links`, {
-                                method: "POST",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({ name, url: link, description, isPublic  }),
-                            });
-                            const result = await response.json();
-                            if (result.success) {
-                                alert("Link saved successfully!");
-                                LINKS_MOVIES.push({ imdbID: movie.imdbID, name, link });
-                                localStorage.setItem("LINKS_MOVIES", JSON.stringify(LINKS_MOVIES));
-                                form.remove();
-                                MovieDetailsAPI.renderMovieDetails(movie); // Refresh UI
-                            } else {
-                                alert(result.message);
-                            }
-                        } catch (error) {
-                            console.error("Error adding link:", error);
-                            alert("Failed to save link.");
-                        }
-                    } else {
-                        alert("Please fill out both fields.");
-                    }
-                });
-            });
-        }
-    }
+      }
+    
 }
