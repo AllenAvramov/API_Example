@@ -1,7 +1,26 @@
 const API_KEY = 'c0d87c58'
 const BASE_URL = 'http://www.omdbapi.com/';
-let LIKED_MOVIES = JSON.parse(localStorage.getItem("LIKED_MOVIES")) || [];
 let LINKS_MOVIES = JSON.parse(localStorage.getItem("LINKS_MOVIES")) || [];
+let LIKED_MOVIES = [];
+
+fetch('/favorites', { method: 'GET', credentials: 'include' })
+  .then(res => res.json())
+  .then(data => {
+    if (data.success) {
+      LIKED_MOVIES = data.favorites; 
+      // render your UI with the correct "like" states
+    }
+  });
+
+  fetch('/favorites', { method: 'GET', credentials: 'include' })
+  .then(res => res.json())
+  .then(data => {
+    if (data.success) {
+      LIKED_MOVIES = data.favorites; // e.g. array of imdbIDs
+    }
+  });
+ 
+
 
 class Movie{
     constructor(id,title,year,plot,imdbid,poster){
@@ -71,7 +90,7 @@ class MovieAPI {
 
     static RenderMoviesCard(movies, container) {
         const cards = movies.map(movie => `
-            <div class="col-md-4 mb-9">
+            <div class="animate__animated animate__zoomIn col-md-4 mb-9">
                 <div class="card row" style="width: 18rem;">
                     <img src="${movie.poster}" class="card-img-top" alt="${movie.title}">
                     <div class="card-body">
@@ -317,6 +336,19 @@ class MovieDetailsAPI {
                 form.id = "linkForm";
                 form.className = "mt-3";
 
+
+
+                const checkboxLabel = document.createElement("label");
+                checkboxLabel.textContent = "Make link public? ";
+
+                const checkbox = document.createElement("input");
+                checkbox.type = "checkbox";
+                checkbox.className = "mb-2 ml-2";
+
+                checkboxLabel.appendChild(checkbox);
+                form.appendChild(checkboxLabel);
+
+
                 const linkInput = document.createElement("input");
                 linkInput.type = "text";
                 linkInput.placeholder = "Enter Link";
@@ -348,13 +380,13 @@ class MovieDetailsAPI {
                     const link = linkInput.value;
                     const name = nameInput.value;
                     const description = "Custom description"; // You can allow user input if needed
-                
+                    const isPublic = checkbox.checked;
                     if (link && name) {
                         try {
                             const response = await fetch(`/favorites/${movie.imdbID}/links`, {
                                 method: "POST",
                                 headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({ name, url: link, description }),
+                                body: JSON.stringify({ name, url: link, description, isPublic  }),
                             });
                             const result = await response.json();
                             if (result.success) {

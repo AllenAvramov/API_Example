@@ -63,7 +63,7 @@ function renderMovies(sortBy = "name") {
   } else {
     sortedMovies.forEach((movie) => {
       const movieCard = `
-        <div class="card movie-card mb-4" style="width: 18rem;">
+        <div class="animate__animated animate__zoomIn card movie-card mb-4" style="width: 18rem;">
           <img src="${movie.poster}" class="card-img-top" alt="${movie.name}">
           <div class="card-body">
             <h5 class="card-title">${movie.name}</h5>

@@ -3,6 +3,7 @@ const path = require("path");
 const fs = require("fs");
 const session = require("express-session");
 
+const db = require("./database");
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -159,12 +160,12 @@ app.get("/favorites", isAuthenticated, (req, res) => {
 app.post("/favorites/:movieId/links", isAuthenticated, (req, res) => {
   const { id: userId } = req.session.user;
   const { movieId } = req.params;
-  const { name, url, description } = req.body;
-
+  const { name, url, description, isPublic } = req.body; // <-- include isPublic
+  
   if (!name || !url) {
     return res.json({ success: false, message: "Name and URL are required." });
   }
-
+  
   // First find the favorite record
   const sqlFav = `SELECT id FROM favorites WHERE userId = ? AND movieId = ?`;
   db.get(sqlFav, [userId, movieId], (err, favorite) => {
@@ -177,10 +178,13 @@ app.post("/favorites/:movieId/links", isAuthenticated, (req, res) => {
 
     // Insert a link
     const sqlInsertLink = `
-      INSERT INTO links (favoriteId, name, url, description)
-      VALUES (?, ?, ?, ?)
+      INSERT INTO links (favoriteId, name, url, description, isPublic)
+      VALUES (?, ?, ?, ?, ?)
     `;
-    db.run(sqlInsertLink, [favorite.id, name, url, description || ""], function (err2) {
+    // Convert isPublic to an integer 0 or 1
+    const isPublicValue = isPublic ? 1 : 0;
+
+    db.run(sqlInsertLink, [favorite.id, name, url, description || "", isPublicValue], function (err2) {
       if (err2) {
         return res.status(500).json({ success: false, message: err2.message });
       }
@@ -225,21 +229,53 @@ app.get("/favorites/:movieId/links", isAuthenticated, (req, res) => {
   const { id: userId } = req.session.user;
   const { movieId } = req.params;
 
-  const sqlFav = `SELECT id FROM favorites WHERE userId = ? AND movieId = ?`;
-  db.get(sqlFav, [userId, movieId], (err, favorite) => {
+  // 1) Find all favorites (i.e., all userIDs who favorited this movie).
+  const sqlFavAll = `SELECT * FROM favorites WHERE movieId = ?`;
+  db.all(sqlFavAll, [movieId], (err, allFavorites) => {
     if (err) {
       return res.status(500).json({ success: false, message: err.message });
     }
-    if (!favorite) {
-      return res.json({ success: true, links: [] }); // No favorites => no links
+    if (!allFavorites || allFavorites.length === 0) {
+      // no one favorited this movie => no links
+      return res.json({ success: true, links: [] });
     }
 
-    const sqlLinks = `SELECT name, url, description FROM links WHERE favoriteId = ?`;
-    db.all(sqlLinks, [favorite.id], (err2, rows) => {
+    // Let’s find the user's own favoriteId for the movie
+    const userFavorite = allFavorites.find(f => f.userId === userId);
+    // userFavorite could be undefined if this user didn't favorite the movie.
+
+    // 2) We'll collect all public links from ALL favoriteIds
+    const allFavIDs = allFavorites.map(f => f.id);
+
+    const sqlLinks = `
+      SELECT * FROM links
+      WHERE favoriteId IN (${allFavIDs.map(() => '?').join(',')})
+    `;
+
+    db.all(sqlLinks, allFavIDs, (err2, linkRows) => {
       if (err2) {
         return res.status(500).json({ success: false, message: err2.message });
       }
-      res.json({ success: true, links: rows });
+
+      // 3) Filter: keep all public links + keep private links if they belong to this user
+      const filtered = linkRows.filter(link => {
+        // We'll assume 1 = public, 0 = private
+        if (link.isPublic === 1) {
+          return true; // show to everyone
+        }
+        // else if link is private => show only if it's user’s link
+        return userFavorite && link.favoriteId === userFavorite.id;
+      });
+
+      // 4) Return only the needed fields
+      const linksData = filtered.map(link => ({
+        name: link.name,
+        url: link.url,
+        description: link.description,
+        isPublic: link.isPublic,
+      }));
+
+      return res.json({ success: true, links: linksData });
     });
   });
 });
@@ -387,4 +423,3 @@ app.listen(PORT, () => {
 
 
 
-const db = require("./database");

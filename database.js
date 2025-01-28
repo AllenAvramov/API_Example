@@ -41,6 +41,7 @@ db.serialize(() => {
       name TEXT NOT NULL,
       url TEXT NOT NULL,
       description TEXT,
+      isPublic INTEGER NOT NULL DEFAULT 0, 
       FOREIGN KEY(favoriteId) REFERENCES favorites(id)
     )
   `);
