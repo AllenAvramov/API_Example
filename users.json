@@ -3,12 +3,7 @@
     "name": "Allen Avramov",
     "email": "allen@gmail.com",
     "password": "Allen1",
-    "favorites": [
-      {
-        "movieId": "tt0167260",
-        "links": []
-      }
-    ]
+    "favorites": []
   },
   {
     "name": "Lior Nahon",

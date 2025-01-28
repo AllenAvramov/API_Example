@@ -49,6 +49,7 @@ function isAuthenticated(req, res, next) {
 app.post("/register", (req, res) => {
   const { name, email, password } = req.body;
 
+  // Perform your validations here as before...
   if (!name || name.length > 50) {
     return res.json({ success: false, message: "Name must be less than 50 characters." });
   }
@@ -61,14 +62,21 @@ app.post("/register", (req, res) => {
       message: "Password must be 6-15 characters long, with uppercase, lowercase, and a number.",
     });
   }
-  if (users.some(user => user.email === email)) {
-    return res.json({ success: false, message: "Email already registered." });
-  }
 
-  // Save user
-  users.push({ name, email, password, favorites: [] });
-  saveUsers();
-  res.json({ success: true });
+  // Insert into SQLite database
+  const sql = `INSERT INTO users (name, email, password) VALUES (?, ?, ?)`;
+  db.run(sql, [name, email, password], function (err) {
+    if (err) {
+      // If the email is already taken or some other error
+      if (err.message.includes("UNIQUE constraint")) {
+        return res.json({ success: false, message: "Email already registered." });
+      }
+      return res.json({ success: false, message: "Database error: " + err.message });
+    }
+
+    // If successful:
+    return res.json({ success: true, userId: this.lastID });
+  });
 });
 
 
@@ -80,63 +88,63 @@ app.post("/register", (req, res) => {
 
 // Add movie to favorites
 app.post("/favorites", isAuthenticated, (req, res) => {
-  const { email } = req.session.user;
+  const { id: userId } = req.session.user; // user.id from the session
   const { movieId } = req.body;
 
-  const user = users.find(user => user.email === email);
-  if (!user) {
-    return res.status(404).json({ success: false, message: "User not found." });
-  }
+  // Check if favorite already exists
+  const sqlCheck = `SELECT id FROM favorites WHERE userId = ? AND movieId = ?`;
+  db.get(sqlCheck, [userId, movieId], (err, row) => {
+    if (err) {
+      return res.status(500).json({ success: false, message: err.message });
+    }
+    if (row) {
+      // Already in favorites
+      return res.json({ success: false, message: "Movie already in favorites." });
+    }
 
-  // Check if movie already exists in favorites
-  const existingMovie = user.favorites.find(fav => fav.movieId === movieId);
-  if (existingMovie) {
-    return res.json({ success: false, message: "Movie already in favorites." });
-  }
-
-  // Add the movie as an object with a movieId and an empty links array
-  user.favorites.push({ movieId, links: [] });
-  saveUsers();
-
-  res.json({ success: true, message: "Movie added to favorites." });
+    // Insert into favorites
+    const sqlInsert = `INSERT INTO favorites (userId, movieId) VALUES (?, ?)`;
+    db.run(sqlInsert, [userId, movieId], function (err2) {
+      if (err2) {
+        return res.status(500).json({ success: false, message: err2.message });
+      }
+      return res.json({ success: true, message: "Movie added to favorites." });
+    });
+  });
 });
 
 // Remove movie from favorites
 app.delete("/favorites", isAuthenticated, (req, res) => {
-  const { email } = req.session.user; // Logged-in user's email
-  const { movieId } = req.body; // Movie ID to remove
+  const { id: userId } = req.session.user;
+  const { movieId } = req.body;
 
-  const user = users.find(user => user.email === email);
-  if (!user) {
-    return res.status(404).json({ success: false, message: "User not found." });
-  }
-
-  // Find the movie in the user's favorites
-  const initialLength = user.favorites.length;
-  user.favorites = user.favorites.filter(fav => fav.movieId !== movieId);
-
-  // Check if a movie was actually removed
-  if (user.favorites.length === initialLength) {
-    return res.status(404).json({ success: false, message: "Movie not found in favorites." });
-  }
-
-  saveUsers(); // Save updated data
-  res.json({ success: true, message: "Movie removed from favorites." });
+  const sql = `DELETE FROM favorites WHERE userId = ? AND movieId = ?`;
+  db.run(sql, [userId, movieId], function (err) {
+    if (err) {
+      return res.status(500).json({ success: false, message: err.message });
+    }
+    if (this.changes === 0) {
+      // No rows deleted
+      return res.status(404).json({ success: false, message: "Movie not found in favorites." });
+    }
+    return res.json({ success: true, message: "Movie removed from favorites." });
+  });
 });
 
 // Get favorite movies for the logged-in user
 app.get("/favorites", isAuthenticated, (req, res) => {
-  const { email } = req.session.user;
+  const { id: userId } = req.session.user;
 
-  const user = users.find(user => user.email === email);
-  if (!user) {
-    return res.status(404).json({ success: false, message: "User not found." });
-  }
+  const sql = `SELECT movieId FROM favorites WHERE userId = ?`;
+  db.all(sql, [userId], (err, rows) => {
+    if (err) {
+      return res.status(500).json({ success: false, message: err.message });
+    }
 
-  // Extract movie IDs from the user's favorites
-  const favoriteMovieIDs = user.favorites.map(fav => fav.movieId);
-
-  res.json({ success: true, favorites: favoriteMovieIDs });
+    // rows is an array of objects: [ { movieId: '...' }, { movieId: '...' }, ... ]
+    const favoriteMovieIDs = rows.map(row => row.movieId);
+    res.json({ success: true, favorites: favoriteMovieIDs });
+  });
 });
 
 
@@ -149,7 +157,7 @@ app.get("/favorites", isAuthenticated, (req, res) => {
 
 // Add a link to a specific movie in favorites
 app.post("/favorites/:movieId/links", isAuthenticated, (req, res) => {
-  const { email } = req.session.user;
+  const { id: userId } = req.session.user;
   const { movieId } = req.params;
   const { name, url, description } = req.body;
 
@@ -157,79 +165,89 @@ app.post("/favorites/:movieId/links", isAuthenticated, (req, res) => {
     return res.json({ success: false, message: "Name and URL are required." });
   }
 
-  const user = users.find(user => user.email === email);
-  if (!user) {
-    return res.status(404).json({ success: false, message: "User not found." });
-  }
+  // First find the favorite record
+  const sqlFav = `SELECT id FROM favorites WHERE userId = ? AND movieId = ?`;
+  db.get(sqlFav, [userId, movieId], (err, favorite) => {
+    if (err) {
+      return res.status(500).json({ success: false, message: err.message });
+    }
+    if (!favorite) {
+      return res.status(404).json({ success: false, message: "Movie not found in favorites." });
+    }
 
-  const movie = user.favorites.find(fav => fav.movieId === movieId);
-  if (!movie) {
-    return res.status(404).json({ success: false, message: "Movie not found in favorites." });
-  }
-
-  // Add the link to the movie's links array
-  movie.links.push({ name, url, description });
-  saveUsers();
-
-  res.json({ success: true, message: "Link added successfully." });
+    // Insert a link
+    const sqlInsertLink = `
+      INSERT INTO links (favoriteId, name, url, description)
+      VALUES (?, ?, ?, ?)
+    `;
+    db.run(sqlInsertLink, [favorite.id, name, url, description || ""], function (err2) {
+      if (err2) {
+        return res.status(500).json({ success: false, message: err2.message });
+      }
+      res.json({ success: true, message: "Link added successfully." });
+    });
+  });
 });
+
 
 
 
 // Remove a link from a specific movie in favorites
 app.delete("/favorites/:movieId/links", isAuthenticated, (req, res) => {
-  const { email } = req.session.user;
+  const { id: userId } = req.session.user;
   const { movieId } = req.params;
-  const { name } = req.body; // Assuming the link name is sent in the body to identify it
+  const { name } = req.body; // the link 'name' as the unique identifier
 
-  const user = users.find(user => user.email === email);
-  if (!user) {
-    return res.status(404).json({ success: false, message: "User not found." });
-  }
+  const sqlFav = `SELECT id FROM favorites WHERE userId = ? AND movieId = ?`;
+  db.get(sqlFav, [userId, movieId], (err, favorite) => {
+    if (err) {
+      return res.status(500).json({ success: false, message: err.message });
+    }
+    if (!favorite) {
+      return res.status(404).json({ success: false, message: "Movie not found in favorites." });
+    }
 
-  // Find the movie in the user's favorites
-  const movie = user.favorites.find(fav => fav.movieId === movieId);
-  if (!movie) {
-    return res.status(404).json({ success: false, message: "Movie not found in favorites." });
-  }
-
-  // Find and remove the link by name
-  const initialLength = movie.links.length;
-  movie.links = movie.links.filter(link => link.name !== name);
-
-  // Check if the link was actually removed
-  if (movie.links.length === initialLength) {
-    return res.status(404).json({ success: false, message: "Link not found." });
-  }
-
-  // Save the updated user data
-  saveUsers();
-
-  res.json({ success: true, message: "Link removed successfully." });
+    const sqlDelLink = `DELETE FROM links WHERE favoriteId = ? AND name = ?`;
+    db.run(sqlDelLink, [favorite.id, name], function (err2) {
+      if (err2) {
+        return res.status(500).json({ success: false, message: err2.message });
+      }
+      if (this.changes === 0) {
+        return res.status(404).json({ success: false, message: "Link not found." });
+      }
+      res.json({ success: true, message: "Link removed successfully." });
+    });
+  });
 });
 
 // Get links for a specific movie in favorites
 app.get("/favorites/:movieId/links", isAuthenticated, (req, res) => {
-  const { email } = req.session.user;
+  const { id: userId } = req.session.user;
   const { movieId } = req.params;
 
-  const user = users.find(user => user.email === email);
-  if (!user) {
-    return res.status(404).json({ success: false, message: "User not found." });
-  }
+  const sqlFav = `SELECT id FROM favorites WHERE userId = ? AND movieId = ?`;
+  db.get(sqlFav, [userId, movieId], (err, favorite) => {
+    if (err) {
+      return res.status(500).json({ success: false, message: err.message });
+    }
+    if (!favorite) {
+      return res.json({ success: true, links: [] }); // No favorites => no links
+    }
 
-  const movie = user.favorites.find(fav => fav.movieId === movieId);
-  if (!movie || !movie.links) {
-    return res.json({ success: true, links: [] }); // No links yet
-  }
-
-  res.json({ success: true, links: movie.links });
+    const sqlLinks = `SELECT name, url, description FROM links WHERE favoriteId = ?`;
+    db.all(sqlLinks, [favorite.id], (err2, rows) => {
+      if (err2) {
+        return res.status(500).json({ success: false, message: err2.message });
+      }
+      res.json({ success: true, links: rows });
+    });
+  });
 });
 
 
 // Edit a link for a specific movie in favorites
 app.put("/favorites/:movieId/links", isAuthenticated, (req, res) => {
-  const { email } = req.session.user;
+  const { id: userId } = req.session.user;
   const { movieId } = req.params;
   const { name, newName, newUrl, newDescription } = req.body;
 
@@ -237,32 +255,34 @@ app.put("/favorites/:movieId/links", isAuthenticated, (req, res) => {
     return res.json({ success: false, message: "All fields are required." });
   }
 
-  const user = users.find(user => user.email === email);
-  if (!user) {
-    return res.status(404).json({ success: false, message: "User not found." });
-  }
+  const sqlFav = `SELECT id FROM favorites WHERE userId = ? AND movieId = ?`;
+  db.get(sqlFav, [userId, movieId], (err, favorite) => {
+    if (err) {
+      return res.status(500).json({ success: false, message: err.message });
+    }
+    if (!favorite) {
+      return res.status(404).json({ success: false, message: "Movie not found in favorites." });
+    }
 
-  // Find the movie in the user's favorites
-  const movie = user.favorites.find(fav => fav.movieId === movieId);
-  if (!movie) {
-    return res.status(404).json({ success: false, message: "Movie not found in favorites." });
-  }
-
-  // Find the link to update
-  const link = movie.links.find(link => link.name === name);
-  if (!link) {
-    return res.status(404).json({ success: false, message: "Link not found." });
-  }
-
-  // Update the link details
-  link.name = newName;
-  link.url = newUrl;
-  link.description = newDescription || link.description; // Optional field
-
-  // Save the updated user data
-  saveUsers();
-
-  res.json({ success: true, message: "Link updated successfully." });
+    const sqlUpdate = `
+      UPDATE links
+      SET name = ?, url = ?, description = ?
+      WHERE favoriteId = ? AND name = ?
+    `;
+    db.run(
+      sqlUpdate,
+      [newName, newUrl, newDescription || "", favorite.id, name],
+      function (err2) {
+        if (err2) {
+          return res.status(500).json({ success: false, message: err2.message });
+        }
+        if (this.changes === 0) {
+          return res.status(404).json({ success: false, message: "Link not found to update." });
+        }
+        res.json({ success: true, message: "Link updated successfully." });
+      }
+    );
+  });
 });
 
 
@@ -277,13 +297,21 @@ app.put("/favorites/:movieId/links", isAuthenticated, (req, res) => {
 // Login
 app.post("/login.html", (req, res) => {
   const { email, password } = req.body;
-  const user = users.find(user => user.email === email && user.password === password);
-  if (user) {
-    req.session.user = { name: user.name, email: user.email };
-    res.json({ success: true });
-  } else {
-    res.json({ success: false, message: "Invalid email or password." });
-  }
+
+  const sql = `SELECT id, name, email FROM users WHERE email = ? AND password = ?`;
+  db.get(sql, [email, password], (err, row) => {
+    if (err) {
+      return res.json({ success: false, message: "Database error: " + err.message });
+    }
+    if (row) {
+      // Found a user
+      req.session.user = { id: row.id, name: row.name, email: row.email };
+      return res.json({ success: true });
+    } else {
+      // No user found
+      return res.json({ success: false, message: "Invalid email or password." });
+    }
+  });
 });
 
 // Logout
@@ -307,16 +335,25 @@ app.get("/user-info", (req, res) => {
 
 // Movies API
 app.get("/api/movies", (req, res) => {
-  res.json(movies);
+  db.all("SELECT * FROM movies", [], (err, rows) => {
+    if (err) {
+      return res.status(500).send("Database error: " + err.message);
+    }
+    res.json(rows);
+  });
 });
 
 app.get("/api/movies/:id", (req, res) => {
-  const movie = movies.find(m => m.id === parseInt(req.params.id));
-  if (movie) {
-    res.json(movie);
-  } else {
-    res.status(404).send("Movie not found");
-  }
+  db.get("SELECT * FROM movies WHERE id = ?", [req.params.id], (err, row) => {
+    if (err) {
+      return res.status(500).send("Database error: " + err.message);
+    }
+    if (row) {
+      return res.json(row);
+    } else {
+      return res.status(404).send("Movie not found");
+    }
+  });
 });
 
 // Protect access to main pages
@@ -342,3 +379,12 @@ app.get("/register", (req, res) => {
 app.listen(PORT, () => {
   console.log(`Server running at http://localhost:${PORT}`);
 });
+
+
+
+
+
+
+
+
+const db = require("./database");
