@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Movies with Links</title>
+    <!-- Bootstrap CSS -->
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap@4.4.1/dist/css/bootstrap.min.css"
+      integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh"
+      crossorigin="anonymous"
+    />
+    <!-- Animate.css (optional) -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"
+    />
+    <!-- Font Awesome (optional) -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css"
+    />
+    <style>
+      body {
+        background-color: #f8f9fa;
+        padding-bottom: 6rem;
+      }
+
+      h1 {
+        font-weight: 700;
+      }
+
+      #header {
+        background: linear-gradient(90deg, #343a40, #495057);
+        color: white;
+        padding: 20px;
+      }
+
+      .navbar {
+        margin-bottom: 20px;
+      }
+
+      .table th,
+      .table td {
+        vertical-align: middle;
+      }
+
+      footer {
+        position: fixed;
+        bottom: 0;
+        width: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- HEADER -->
+    <header id="header" class="text-center">
+      <h1 id="userName" class="animate__animated animate__bounce mb-3">
+        Welcome, <i class="fa fa-user" aria-hidden="true"></i> Guest
+      </h1>
+    </header>
+
+    <!-- NAVBAR -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+      <a class="navbar-brand" href="/index">
+        <i class="fas fa-film"></i> Movie Portal
+      </a>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav ml-auto">
+          <li class="nav-item">
+            <a class="nav-link" href="/index">
+              <i class="fas fa-search"></i> Search Page
+            </a>
+          </li>
+          <!-- Link to main "favorite movies" page (if desired) -->
+          <li class="nav-item">
+            <a class="nav-link" href="/favorite">
+              <i class="fas fa-heart"></i> Favorite Movies
+            </a>
+          </li>
+          <!-- Current page link (optional, could be plain text or removed) -->
+          <li class="nav-item active">
+            <a class="nav-link" href="#">
+              <i class="fas fa-link"></i> Movies With Links
+            </a>
+          </li>
+          <!-- Logout -->
+          <li class="nav-item">
+            <a class="btn btn-danger nav-link text-white" href="/logout">
+              <i class="fas fa-sign-out-alt"></i> Logout
+            </a>
+          </li>
+        </ul>
+      </div>
+    </nav>
+
+    <!-- CONTENT -->
+    <div class="container mb-5">
+      <h2 class="mb-4 text-center">All Movies That Have Links</h2>
+
+      <!-- TABLE -->
+      <table
+        class="table table-bordered table-hover animate__animated animate__bounceInLeft"
+        id="moviesTable"
+      >
+        <thead class="thead-dark">
+          <tr>
+            <th>Poster</th>
+            <th>Title</th>
+            <th>Top Link</th>
+            <th>Likes</th>
+            <th>Details</th>
+          </tr>
+        </thead>
+        <tbody id="moviesBody"></tbody>
+      </table>
+    </div>
+
+    <!-- FOOTER -->
+    <footer class="text-center py-3 bg-dark text-white">
+      <p>&copy; 2025 Movie Portal. All Rights Reserved.</p>
+    </footer>
+
+    <!-- Scripts: jQuery, Popper, Bootstrap -->
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.5/dist/umd/popper.min.js"
+      integrity="sha384-..."
+      crossorigin="anonymous"
+    ></script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/bootstrap@4.4.1/dist/js/bootstrap.min.js"
+      integrity="sha384-..."
+      crossorigin="anonymous"
+    ></script>
+
+    <script src="movies-with-links.js"></script>
+  </body>
+</html>

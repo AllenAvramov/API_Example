@@ -430,6 +430,56 @@ app.put("/favorites/:movieId/links", isAuthenticated, (req, res) => {
 });
 
 
+app.get("/api/movies-with-links", isAuthenticated, (req, res) => {
+  const sql = `
+    SELECT 
+      favorites.movieId,
+      links.id AS linkId,
+      links.name AS linkName,
+      links.url AS linkUrl,
+      links.description AS linkDescription,
+      COALESCE(COUNT(link_likes.userId),0) AS likeCount
+    FROM favorites
+    JOIN links ON favorites.id = links.favoriteId
+    LEFT JOIN link_likes ON link_likes.linkId = links.id
+    GROUP BY favorites.movieId, links.id
+  `;
+  
+  db.all(sql, [], (err, rows) => {
+    if (err) {
+      return res.status(500).json({ success: false, message: err.message });
+    }
+    
+    // Group links by movieId
+    const grouped = {};
+    rows.forEach(row => {
+      if (!grouped[row.movieId]) {
+        grouped[row.movieId] = [];
+      }
+      grouped[row.movieId].push({
+        linkId: row.linkId,
+        linkName: row.linkName,
+        linkUrl: row.linkUrl,
+        linkDescription: row.linkDescription,
+        likeCount: row.likeCount
+      });
+    });
+
+    // For each movieId, pick the link with the maximum likeCount
+    const result = Object.entries(grouped).map(([movieId, linksArr]) => {
+      const topLink = linksArr.reduce((max, link) => 
+        link.likeCount > max.likeCount ? link : max
+      , linksArr[0]);
+
+      return {
+        movieId,             // e.g. imdbID if you store that in favorites
+        topLink              // the link with the highest likeCount
+      };
+    });
+
+    return res.json({ success: true, data: result });
+  });
+});
 
 
 
@@ -520,6 +570,10 @@ app.get("/login", (req, res) => {
 
 app.get("/register", (req, res) => {
   res.sendFile(path.join(__dirname, "client", "register.html"));
+});
+
+app.get("/movies-with-links", isAuthenticated, (req, res) => {
+  res.sendFile(path.join(__dirname, "client", "movies-with-links.html"));
 });
 
 
