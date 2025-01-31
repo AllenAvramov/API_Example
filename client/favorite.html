@@ -15,6 +15,17 @@
     <style>
       body {
         background-color: #f8f9fa;
+        padding-bottom: 60px;
+      }
+
+      #header {
+        background: linear-gradient(90deg, #343a40, #495057);
+        color: white;
+        padding: 20px;
+      }
+
+      h1 {
+        font-weight: 700;
       }
 
       .movie-container {
@@ -46,6 +57,12 @@
         align-items: center;
         justify-content: space-between;
         margin-bottom: 1.5rem;
+      }
+
+      .card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+        transition: all 0.2s ease-in-out;
       }
 
       footer {
@@ -85,7 +102,7 @@
       </div>
     </div>
 
-    <footer>
+    <footer class="text-center mt-5 py-3 bg-dark text-white fixed-bottom">
       <p>&copy; 2025 Movie Portal. All Rights Reserved.</p>
     </footer>
 

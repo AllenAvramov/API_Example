@@ -45,12 +45,12 @@ function isAuthenticated(req, res, next) {
   }
 }
 
-// Routes
+
 // Register
 app.post("/register", (req, res) => {
   const { name, email, password } = req.body;
 
-  // Perform your validations here as before...
+  // Perform validations 
   if (!name || name.length > 50) {
     return res.json({ success: false, message: "Name must be less than 50 characters." });
   }
@@ -399,6 +399,10 @@ app.get("/index", isAuthenticated, (req, res) => {
 
 app.get("/details", isAuthenticated, (req, res) => {
   res.sendFile(path.join(__dirname, "client", "details.html"));
+});
+
+app.get("/favorite", isAuthenticated, (req, res) => {
+  res.sendFile(path.join(__dirname, "client", "favorite.html"));
 });
 
 // Serve login and register pages
