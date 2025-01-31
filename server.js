@@ -196,30 +196,127 @@ app.post("/favorites/:movieId/links", isAuthenticated, (req, res) => {
 
 
 
+
+
+// Like a link
+app.post("/favorites/:movieId/links/:linkId/like", isAuthenticated, (req, res) => {
+  const { id: userId } = req.session.user;
+  const { movieId, linkId } = req.params;
+
+  // 1) Check that this link belongs to the correct movie and is visible to the user
+  const sqlCheckLink = `
+    SELECT l.id, l.favoriteId, f.userId as favOwner
+    FROM links l
+    JOIN favorites f ON f.id = l.favoriteId
+    WHERE l.id = ? AND f.movieId = ?
+  `;
+  db.get(sqlCheckLink, [linkId, movieId], (err, linkRow) => {
+    if (err) return res.status(500).json({ success: false, message: err.message });
+    if (!linkRow) {
+      return res.status(404).json({ success: false, message: "Link not found for this movie." });
+    }
+
+    // 2) If the link is private and doesn’t belong to this user => user can’t like it
+    //    Or you may allow them to like it only if they can see it. It's up to you.
+    //    For simplicity, let's allow liking if the user can see the link
+    //    (We already filter in the GET route if it is not visible.)
+
+    // 3) Insert into link_likes
+    const sqlInsert = `INSERT INTO link_likes (userId, linkId) VALUES (?, ?)`;
+    db.run(sqlInsert, [userId, linkId], function (err2) {
+      if (err2) {
+        if (err2.message.includes("UNIQUE constraint")) {
+          // Already liked
+          return res.status(400).json({ success: false, message: "Already liked." });
+        }
+        return res.status(500).json({ success: false, message: err2.message });
+      }
+      return res.json({ success: true, message: "Link liked." });
+    });
+  });
+});
+
+// Unlike a link
+app.delete("/favorites/:movieId/links/:linkId/like", isAuthenticated, (req, res) => {
+  const { id: userId } = req.session.user;
+  const { movieId, linkId } = req.params;
+
+  // Same check to see if link belongs to the movie
+  const sqlCheckLink = `
+    SELECT l.id
+    FROM links l
+    JOIN favorites f ON f.id = l.favoriteId
+    WHERE l.id = ? AND f.movieId = ?
+  `;
+  db.get(sqlCheckLink, [linkId, movieId], (err, linkRow) => {
+    if (err) return res.status(500).json({ success: false, message: err.message });
+    if (!linkRow) {
+      return res.status(404).json({ success: false, message: "Link not found for this movie." });
+    }
+
+    // 2) Remove from link_likes
+    const sqlDel = `DELETE FROM link_likes WHERE userId = ? AND linkId = ?`;
+    db.run(sqlDel, [userId, linkId], function (err2) {
+      if (err2) {
+        return res.status(500).json({ success: false, message: err2.message });
+      }
+      if (this.changes === 0) {
+        return res
+          .status(400)
+          .json({ success: false, message: "You haven't liked this link." });
+      }
+      return res.json({ success: true, message: "Link unliked." });
+    });
+  });
+});
+
+
+
+
+
 // Remove a link from a specific movie in favorites
 app.delete("/favorites/:movieId/links", isAuthenticated, (req, res) => {
-  const { id: userId } = req.session.user;
+  // Extract the logged-in user's ID and NAME from the session
+  const { id: userId, name: userName } = req.session.user;
   const { movieId } = req.params;
-  const { name } = req.body; // the link 'name' as the unique identifier
+  const { name } = req.body; // unique link identifier is "name"
 
-  const sqlFav = `SELECT id FROM favorites WHERE userId = ? AND movieId = ?`;
-  db.get(sqlFav, [userId, movieId], (err, favorite) => {
+  // Step 1: Find the link + associated favorite
+  //         (We JOIN favorites to ensure it belongs to the correct movie,
+  //          and to find who the "owner" is.)
+  const sqlLink = `
+    SELECT links.id AS linkId,
+           favorites.userId AS ownerId
+    FROM links
+    JOIN favorites ON favorites.id = links.favoriteId
+    WHERE links.name = ?
+      AND favorites.movieId = ?
+  `;
+
+  db.get(sqlLink, [name, movieId], (err, linkRow) => {
     if (err) {
       return res.status(500).json({ success: false, message: err.message });
     }
-    if (!favorite) {
-      return res.status(404).json({ success: false, message: "Movie not found in favorites." });
+    if (!linkRow) {
+      // Means no link matched that (movieId + link name)
+      return res.status(404).json({ success: false, message: "Link not found for this movie." });
     }
 
-    const sqlDelLink = `DELETE FROM links WHERE favoriteId = ? AND name = ?`;
-    db.run(sqlDelLink, [favorite.id, name], function (err2) {
+    // Step 2: Check if the current user is the "owner" OR is "ADMIN".
+    if (linkRow.ownerId !== userId && userName !== "ADMIN") {
+      return res.status(403).json({ success: false, message: "You are not allowed to delete this link." });
+    }
+
+    // Step 3: Perform the DELETE if authorized
+    const sqlDelLink = `DELETE FROM links WHERE id = ?`;
+    db.run(sqlDelLink, [linkRow.linkId], function (err2) {
       if (err2) {
         return res.status(500).json({ success: false, message: err2.message });
       }
       if (this.changes === 0) {
         return res.status(404).json({ success: false, message: "Link not found." });
       }
-      res.json({ success: true, message: "Link removed successfully." });
+      return res.json({ success: true, message: "Link removed successfully." });
     });
   });
 });
@@ -229,50 +326,49 @@ app.get("/favorites/:movieId/links", isAuthenticated, (req, res) => {
   const { id: userId } = req.session.user;
   const { movieId } = req.params;
 
-  // 1) Find all favorites (i.e., all userIDs who favorited this movie).
+  // 1) Find all favorites for this movie
   const sqlFavAll = `SELECT * FROM favorites WHERE movieId = ?`;
   db.all(sqlFavAll, [movieId], (err, allFavorites) => {
     if (err) {
       return res.status(500).json({ success: false, message: err.message });
     }
     if (!allFavorites || allFavorites.length === 0) {
-      // no one favorited this movie => no links
       return res.json({ success: true, links: [] });
     }
 
-    // Let’s find the user's own favoriteId for the movie
-    const userFavorite = allFavorites.find(f => f.userId === userId);
-    // userFavorite could be undefined if this user didn't favorite the movie.
+    // 2) The user’s own favorite record
+    const userFavorite = allFavorites.find((f) => f.userId === userId);
+    const allFavIDs = allFavorites.map((f) => f.id);
 
-    // 2) We'll collect all public links from ALL favoriteIds
-    const allFavIDs = allFavorites.map(f => f.id);
-
+    // We’ll fetch links from the links table:
     const sqlLinks = `
-      SELECT * FROM links
-      WHERE favoriteId IN (${allFavIDs.map(() => '?').join(',')})
+      SELECT
+        links.*,
+        (SELECT COUNT(*) FROM link_likes WHERE link_likes.linkId = links.id) AS likeCount,
+        (SELECT COUNT(*) FROM link_likes WHERE link_likes.linkId = links.id AND link_likes.userId = ?) AS hasLiked
+      FROM links
+      WHERE favoriteId IN (${allFavIDs.map(() => "?").join(",")})
     `;
 
-    db.all(sqlLinks, allFavIDs, (err2, linkRows) => {
+    db.all(sqlLinks, [userId, ...allFavIDs], (err2, linkRows) => {
       if (err2) {
         return res.status(500).json({ success: false, message: err2.message });
       }
 
-      // 3) Filter: keep all public links + keep private links if they belong to this user
+      // filter out private links not belonging to the user
       const filtered = linkRows.filter(link => {
-        // We'll assume 1 = public, 0 = private
-        if (link.isPublic === 1) {
-          return true; // show to everyone
-        }
-        // else if link is private => show only if it's user’s link
+        if (link.isPublic === 1) return true;
         return userFavorite && link.favoriteId === userFavorite.id;
       });
 
-      // 4) Return only the needed fields
       const linksData = filtered.map(link => ({
+        id: link.id,                  // <-- we'll need this ID for "liking"
         name: link.name,
         url: link.url,
         description: link.description,
         isPublic: link.isPublic,
+        likeCount: link.likeCount,
+        hasLiked: link.hasLiked > 0   // 0 or 1 => boolean
       }));
 
       return res.json({ success: true, links: linksData });
@@ -283,41 +379,53 @@ app.get("/favorites/:movieId/links", isAuthenticated, (req, res) => {
 
 // Edit a link for a specific movie in favorites
 app.put("/favorites/:movieId/links", isAuthenticated, (req, res) => {
-  const { id: userId } = req.session.user;
+  // Extract user info and route params
+  const { id: userId, name: userName } = req.session.user;
   const { movieId } = req.params;
-  const { name, newName, newUrl, newDescription } = req.body;
 
+  const { name, newName, newUrl, newDescription } = req.body;
   if (!name || !newName || !newUrl) {
     return res.json({ success: false, message: "All fields are required." });
   }
 
-  const sqlFav = `SELECT id FROM favorites WHERE userId = ? AND movieId = ?`;
-  db.get(sqlFav, [userId, movieId], (err, favorite) => {
+  // Step 1: Find the link + associated favorite (its owner)
+  const sqlLink = `
+    SELECT links.id AS linkId,
+           favorites.userId AS ownerId
+    FROM links
+    JOIN favorites ON favorites.id = links.favoriteId
+    WHERE links.name = ?
+      AND favorites.movieId = ?
+  `;
+
+  db.get(sqlLink, [name, movieId], (err, linkRow) => {
     if (err) {
       return res.status(500).json({ success: false, message: err.message });
     }
-    if (!favorite) {
-      return res.status(404).json({ success: false, message: "Movie not found in favorites." });
+    if (!linkRow) {
+      return res.status(404).json({ success: false, message: "Link not found for this movie." });
     }
 
+    // Step 2: Check if current user is the link's owner or is ADMIN
+    if (linkRow.ownerId !== userId && userName !== "ADMIN") {
+      return res.status(403).json({ success: false, message: "You are not allowed to edit this link." });
+    }
+
+    // Step 3: Perform the update
     const sqlUpdate = `
       UPDATE links
       SET name = ?, url = ?, description = ?
-      WHERE favoriteId = ? AND name = ?
+      WHERE id = ?
     `;
-    db.run(
-      sqlUpdate,
-      [newName, newUrl, newDescription || "", favorite.id, name],
-      function (err2) {
-        if (err2) {
-          return res.status(500).json({ success: false, message: err2.message });
-        }
-        if (this.changes === 0) {
-          return res.status(404).json({ success: false, message: "Link not found to update." });
-        }
-        res.json({ success: true, message: "Link updated successfully." });
+    db.run(sqlUpdate, [newName, newUrl, newDescription || "", linkRow.linkId], function (err2) {
+      if (err2) {
+        return res.status(500).json({ success: false, message: err2.message });
       }
-    );
+      if (this.changes === 0) {
+        return res.status(404).json({ success: false, message: "Link not found to update." });
+      }
+      return res.json({ success: true, message: "Link updated successfully." });
+    });
   });
 });
 

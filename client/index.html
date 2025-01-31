@@ -13,6 +13,10 @@
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"
     />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css"
+    />
     <title>Movie Portal</title>
     <style>
       body {
@@ -51,26 +55,32 @@
         max-width: 400px;
         margin: 20px auto;
       }
+      .nav-link i {
+        margin-right: 5px;
+      }
     </style>
   </head>
   <body>
     <header id="header" class="text-center">
       <h1 id="userName" class="animate__animated animate__bounce mb-3">
-        Welcome, Guest
+        Welcome, <i class="fa fa-user" aria-hidden="true"></i> Guest
       </h1>
     </header>
 
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-      <a class="navbar-brand" href="/index">Movie Portal</a>
-
+      <a class="navbar-brand" href="/index"
+        ><i class="fas fa-film"></i> Movie Portal</a
+      >
       <div class="collapse navbar-collapse" id="navbarNav">
         <ul class="navbar-nav ml-auto">
           <li class="nav-item">
-            <a class="nav-link" href="/favorite">Favorite Movies</a>
+            <a class="nav-link" href="/favorite"
+              ><i class="fas fa-heart"></i> Favorite Movies</a
+            >
           </li>
           <li class="nav-item">
             <a class="btn btn-danger nav-link text-white" href="/logout"
-              >Logout</a
+              ><i class="fas fa-sign-out-alt"></i> Logout</a
             >
           </li>
         </ul>
@@ -78,7 +88,9 @@
     </nav>
 
     <div class="container text-center">
-      <h2 class="mb-4">Search for Movies</h2>
+      <h2 class="mb-4">
+        <i class="fa fa-search" aria-hidden="true"></i> Search for Movies
+      </h2>
       <input
         type="text"
         id="search"

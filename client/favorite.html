@@ -12,6 +12,10 @@
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"
     />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css"
+    />
     <style>
       body {
         background-color: #f8f9fa;
@@ -86,7 +90,9 @@
         Liked Movies
       </h1>
       <div class="sort-container">
-        <a href="index.html" class="btn btn-secondary">Go Back</a>
+        <a href="index.html" class="btn btn-secondary"
+          ><i class="fa fa-chevron-circle-left" aria-hidden="true"></i></i> Go Back</a
+        >
         <div>
           <label for="sortBy" class="form-label me-2">Sort By:</label>
           <select id="sortBy" class="form-select d-inline-block w-auto">
@@ -94,7 +100,7 @@
             <option value="year">Year</option>
             <option value="rating">Rating</option>
           </select>
-          <a class="btn btn-danger" href="/logout">Logout</a>
+          <a class="btn btn-danger" href="/logout"><i class="fas fa-sign-out-alt"></i> Logout</a>
         </div>
       </div>
       <div class="movie-container" id="likedMoviesContainer">

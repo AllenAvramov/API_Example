@@ -176,16 +176,25 @@ class MovieDetailsAPI {
         const likeButtonText = isLiked ? "Unlike" : "Like";
     
         // Build HTML for each link
-        const linksHTML = links.map((link, index) => `
-          <p>
-            <strong>${link.name}:</strong>
-            <a href="${link.url}" target="_blank">${link.url}</a>
-            <button class="btn btn-danger btn-sm ml-2" id="delete-link-${index}">Delete</button>
-            <button class="btn btn-warning btn-sm ml-2" id="edit-link-${index}">Edit</button>
-            ${link.isPublic ? `<span class="badge badge-success ml-2">Public</span>` 
-                            : `<span class="badge badge-secondary ml-2">Private</span>`}
-          </p>
-        `).join('');
+        const linksHTML = links.map((link, index) => {
+          const likeButtonText = link.hasLiked ? "Unlike" : "Like";
+          return `
+            <p>
+              <strong>${link.name}:</strong>
+              <a href="${link.url}" target="_blank">${link.url}</a>
+              <button class="btn btn-danger btn-sm ml-2" id="delete-link-${index}">Delete</button>
+              <button class="btn btn-warning btn-sm ml-2" id="edit-link-${index}">Edit</button>
+              ${
+                link.isPublic
+                  ? '<span class="badge text-success badge-success ml-2">Public</span>'
+                  : '<span class="badge text-danger badge-secondary ml-2">Private</span>'
+              }
+              <!-- Show like button & count -->
+              <button class="btn btn-info btn-sm ml-2" id="like-link-${index}">${likeButtonText}</button>
+              <span class="ml-1">(Likes: ${link.likeCount})</span>
+            </p>
+          `;
+        }).join('');
     
         const detailsContainer = document.getElementById("movie-details");
         const detailsHTML = `
@@ -287,6 +296,43 @@ class MovieDetailsAPI {
                 }
               } else {
                 alert("Name and URL are required to edit the link.");
+              }
+            });
+          }
+          // 4a) LIKE button
+          const likeButton = document.getElementById(`like-link-${index}`);
+          if (likeButton) {
+            likeButton.addEventListener("click", async () => {
+              try {
+                if (link.hasLiked) {
+                  // user wants to UNLIKE
+                  const response = await fetch(`/favorites/${movie.imdbID}/links/${link.id}/like`, {
+                    method: "DELETE",
+                    credentials: "include",
+                  });
+                  const result = await response.json();
+                  if (!result.success) {
+                    alert(result.message || "Failed to unlike");
+                    return;
+                  }
+                } else {
+                  // user wants to LIKE
+                  const response = await fetch(`/favorites/${movie.imdbID}/links/${link.id}/like`, {
+                    method: "POST",
+                    credentials: "include",
+                  });
+                  const result = await response.json();
+                  if (!result.success) {
+                    alert(result.message || "Failed to like");
+                    return;
+                  }
+                }
+
+                // re-fetch new links from the server to update like count
+                const updatedLinks = await this.fetchMovieLinks(movie.imdbID);
+                this.renderMovieDetails(movie, updatedLinks);
+              } catch (error) {
+                console.error("Error (un)liking link:", error);
               }
             });
           }

@@ -45,6 +45,18 @@ db.serialize(() => {
       FOREIGN KEY(favoriteId) REFERENCES favorites(id)
     )
   `);
+  
+  // Likes table for links
+  db.run(
+  `CREATE TABLE IF NOT EXISTS link_likes (
+    userId INTEGER NOT NULL,
+    linkId INTEGER NOT NULL,
+    PRIMARY KEY (userId, linkId),
+    FOREIGN KEY(userId) REFERENCES users(id),
+    FOREIGN KEY(linkId) REFERENCES links(id)
+  )`
+);
+
 });
 
 module.exports = db;
