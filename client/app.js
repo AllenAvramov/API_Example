@@ -177,24 +177,31 @@ class MovieDetailsAPI {
     
         // Build HTML for each link
         const linksHTML = links.map((link, index) => {
-          const likeButtonText = link.hasLiked ? "Unlike" : "Like";
-          return `
-            <p>
-              <strong>${link.name}:</strong>
-              <a href="${link.url}" target="_blank">${link.url}</a>
-              <button class="btn btn-danger btn-sm ml-2" id="delete-link-${index}">Delete</button>
-              <button class="btn btn-warning btn-sm ml-2" id="edit-link-${index}">Edit</button>
-              ${
-                link.isPublic
-                  ? '<span class="badge text-success badge-success ml-2">Public</span>'
-                  : '<span class="badge text-danger badge-secondary ml-2">Private</span>'
-              }
-              <!-- Show like button & count -->
-              <button class="btn btn-info btn-sm ml-2" id="like-link-${index}">${likeButtonText}</button>
-              <span class="ml-1">(Likes: ${link.likeCount})</span>
-            </p>
-          `;
-        }).join('');
+          const likeIcon = link.hasLiked 
+          ? `<i class="fa fa-heart" aria-hidden="true"></i>`   // filled heart for liked
+          : `<i class="fa fa-heart-o" aria-hidden="true"></i>`;  // outline heart for not liked
+          const likeClass = link.hasLiked
+          ? "animate__animated animate__heartBeat"
+          : "animate__animated animate__swing"
+        return `
+          <p>
+            <strong>${link.name}:</strong>
+            <a href="${link.url}" target="_blank">${link.url}</a>
+            ${
+              link.isPublic
+                ? '<span class="badge text-success badge-success ml-2">Public</span>'
+                : '<span class="badge text-danger badge-secondary ml-2">Private</span>'
+            }
+            <button class="btn btn-danger btn-sm ml-2" id="delete-link-${index}">
+              <i class="fa fa-trash" aria-hidden="true"></i>
+            </button>
+            <button class="btn btn-warning btn-sm ml-2" id="edit-link-${index}"><i class="fa fa-pencil" aria-hidden="true"></i></button>
+            <!-- Show like button & count -->
+            <button class="btn btn-sm ml-2 ${likeClass}" id="like-link-${index}">${likeIcon}</button>
+            <span class="ml-1">${link.likeCount}</span>
+          </p>
+        `;
+      }).join('');
     
         const detailsContainer = document.getElementById("movie-details");
         const detailsHTML = `

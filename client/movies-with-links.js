@@ -13,8 +13,9 @@
         .catch((error) => console.error("Error /user-info:", error));
 
       const OMDB_API_KEY = "c0d87c58";
-      fetch("/api/movies-with-links", {
+      fetch("/api/movies-with-links?ts=${Date.now()}", {
         credentials: "include",
+        cache: "no-cache", // extra precaution
       })
         .then((res) => res.json())
         .then((data) => {
