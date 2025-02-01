@@ -72,20 +72,20 @@
             tableBody.innerHTML = ""; // clear
 
             fullData.forEach((movieItem) => {
-              const { linkName, linkUrl, linkDescription, likeCount } =
+              const { linkName, linkUrl, linkDescription, likeCount, username } =
                 movieItem.topLink;
 
               const tr = document.createElement("tr");
 
               // Poster cell
               const tdPoster = document.createElement("td");
-              tdPoster.style.width = "100px";
+              tdPoster.style.width = "60px";
               if (movieItem.moviePoster && movieItem.moviePoster !== "N/A") {
                 tdPoster.innerHTML = `
                   <img 
                     src="${movieItem.moviePoster}" 
                     alt="Poster" 
-                    style="width:100px;"
+                    style="width:60px;"
                   />
                 `;
               } else {
@@ -94,10 +94,12 @@
 
               // Title cell
               const tdTitle = document.createElement("td");
+              tdTitle.style.textAlign = "center";
               tdTitle.textContent = movieItem.movieTitle;
 
               // Top Link cell
               const tdTopLink = document.createElement("td");
+              tdTopLink.style.textAlign = "center";
               tdTopLink.innerHTML = `
                 <strong>${linkName}</strong><br/>
                 <a href="${linkUrl}" target="_blank">${linkUrl}</a>
@@ -106,14 +108,21 @@
 
               // Likes cell
               const tdLikes = document.createElement("td");
+              tdLikes.style.textAlign = "center";
               tdLikes.textContent = likeCount;
+
+              // Users cell
+              const tdAddedBy = document.createElement("td");
+              tdAddedBy.style.textAlign = "center";
+              tdAddedBy.innerHTML = `<strong>${username}</strong>`
 
               // Details cell
               const tdDetails = document.createElement("td");
+              tdDetails.style.textAlign = "center";
               tdDetails.innerHTML = `
-                <a href="details.html?imdbID=${movieItem.movieId}" 
+                <a href="/details?imdbID=${movieItem.movieId}" 
                    class="btn btn-primary btn-sm">
-                  View Details
+                  <i class="fa fa-info-circle" aria-hidden="true"></i>
                 </a>
               `;
 
@@ -121,6 +130,7 @@
               tr.appendChild(tdTitle);
               tr.appendChild(tdTopLink);
               tr.appendChild(tdLikes);
+              tr.appendChild(tdAddedBy);
               tr.appendChild(tdDetails);
 
               tableBody.appendChild(tr);

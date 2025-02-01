@@ -158,7 +158,7 @@ app.get("/favorites", isAuthenticated, (req, res) => {
 
 // Add a link to a specific movie in favorites
 app.post("/favorites/:movieId/links", isAuthenticated, (req, res) => {
-  const { id: userId } = req.session.user;
+  const { id: userId, name: userName } = req.session.user;
   const { movieId } = req.params;
   const { name, url, description, isPublic } = req.body; // <-- include isPublic
   
@@ -178,13 +178,13 @@ app.post("/favorites/:movieId/links", isAuthenticated, (req, res) => {
 
     // Insert a link
     const sqlInsertLink = `
-      INSERT INTO links (favoriteId, name, url, description, isPublic)
-      VALUES (?, ?, ?, ?, ?)
+      INSERT INTO links (favoriteId, name, url, description, isPublic, username)
+      VALUES (?, ?, ?, ?, ?, ?)
     `;
     // Convert isPublic to an integer 0 or 1
     const isPublicValue = isPublic ? 1 : 0;
 
-    db.run(sqlInsertLink, [favorite.id, name, url, description || "", isPublicValue], function (err2) {
+    db.run(sqlInsertLink, [favorite.id, name, url, description || "", isPublicValue, userName], function (err2) {
       if (err2) {
         return res.status(500).json({ success: false, message: err2.message });
       }
@@ -367,6 +367,7 @@ app.get("/favorites/:movieId/links", isAuthenticated, (req, res) => {
         url: link.url,
         description: link.description,
         isPublic: link.isPublic,
+        username: link.username,
         likeCount: link.likeCount,
         hasLiked: link.hasLiked > 0   // 0 or 1 => boolean
       }));
@@ -438,6 +439,7 @@ app.get("/api/movies-with-links", isAuthenticated, (req, res) => {
       links.name AS linkName,
       links.url AS linkUrl,
       links.description AS linkDescription,
+      links.username AS username,
       COALESCE(COUNT(link_likes.userId),0) AS likeCount
     FROM favorites
     JOIN links ON favorites.id = links.favoriteId
@@ -461,7 +463,8 @@ app.get("/api/movies-with-links", isAuthenticated, (req, res) => {
         linkName: row.linkName,
         linkUrl: row.linkUrl,
         linkDescription: row.linkDescription,
-        likeCount: row.likeCount
+        likeCount: row.likeCount,
+        username: row.username
       });
     });
 

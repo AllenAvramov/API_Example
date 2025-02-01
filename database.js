@@ -42,10 +42,11 @@ db.serialize(() => {
       url TEXT NOT NULL,
       description TEXT,
       isPublic INTEGER NOT NULL DEFAULT 0, 
+      username TEXT NOT NULL,
       FOREIGN KEY(favoriteId) REFERENCES favorites(id)
     )
   `);
-  
+
   // Likes table for links
   db.run(
   `CREATE TABLE IF NOT EXISTS link_likes (

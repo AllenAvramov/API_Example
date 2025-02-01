@@ -185,7 +185,7 @@ class MovieDetailsAPI {
           : "animate__animated animate__swing"
         return `
           <p>
-            <strong>${link.name}:</strong>
+            <strong>${link.name}</strong> (added by: <em>${link.username}</em>):<br>
             <a href="${link.url}" target="_blank">${link.url}</a>
             ${
               link.isPublic
@@ -197,7 +197,7 @@ class MovieDetailsAPI {
             </button>
             <button class="btn btn-warning btn-sm ml-2" id="edit-link-${index}"><i class="fa fa-pencil" aria-hidden="true"></i></button>
             <!-- Show like button & count -->
-            <button class="btn btn-sm ml-2 ${likeClass}" id="like-link-${index}">${likeIcon}</button>
+            <a style="color: salmon; cursor: pointer;" class="btn btn-sm ml-2 ${likeClass}" id="like-link-${index}">${likeIcon}</a>
             <span class="ml-1">${link.likeCount}</span>
           </p>
         `;

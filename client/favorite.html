@@ -188,13 +188,14 @@
     <!-- Your custom scripts -->
     <script src="favorite.js"></script>
     <script>
+      const icon = `<i class="fa fa-user-circle" aria-hidden="true"></i>`;
       fetch("/user-info")
         .then((response) => response.json())
         .then((data) => {
           if (data.name) {
             document.getElementById(
               "userName"
-            ).textContent = `Welcome, ${data.name}`;
+            ).innerHTML = `Welcome, ${icon} ${data.name}`;
           } else {
             window.location.href = "/login"; // Redirect if not logged in
           }
