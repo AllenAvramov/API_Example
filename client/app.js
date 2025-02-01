@@ -169,39 +169,53 @@ class MovieDetailsAPI {
     
       // We modify renderMovieDetails to accept the array of links we fetched
       static renderMovieDetails(movie, links) {
-        // Instead of relying on a local LINKS_MOVIES array, use the links param
-        // which is the server’s filtered list of public or private links.
     
         const isLiked = LIKED_MOVIES.includes(movie.imdbID);
         const likeButtonText = isLiked ? "Unlike" : "Like";
     
         // Build HTML for each link
         const linksHTML = links.map((link, index) => {
-          const likeIcon = link.hasLiked 
-          ? `<i class="fa fa-heart" aria-hidden="true"></i>`   // filled heart for liked
-          : `<i class="fa fa-heart-o" aria-hidden="true"></i>`;  // outline heart for not liked
-          const likeClass = link.hasLiked
-          ? "animate__animated animate__heartBeat"
-          : "animate__animated animate__swing"
-        return `
-          <p>
-            <strong>${link.name}</strong> (added by: <em>${link.username}</em>):<br>
-            <a href="${link.url}" target="_blank">${link.url}</a>
-            ${
-              link.isPublic
-                ? '<span class="badge text-success badge-success ml-2">Public</span>'
-                : '<span class="badge text-danger badge-secondary ml-2">Private</span>'
-            }
-            <button class="btn btn-danger btn-sm ml-2" id="delete-link-${index}">
-              <i class="fa fa-trash" aria-hidden="true"></i>
-            </button>
-            <button class="btn btn-warning btn-sm ml-2" id="edit-link-${index}"><i class="fa fa-pencil" aria-hidden="true"></i></button>
-            <!-- Show like button & count -->
-            <a style="color: salmon; cursor: pointer;" class="btn btn-sm ml-2 ${likeClass}" id="like-link-${index}">${likeIcon}</a>
-            <span class="ml-1">${link.likeCount}</span>
-          </p>
-        `;
-      }).join('');
+          return `
+            <div class="card mb-3 shadow-sm">
+              <div class="card-header d-flex justify-content-between align-items-center" style="background-color: #f7f7f7;">
+                <div>
+                  <strong>${link.name}</strong>
+                  <br/>
+                  <small class="text-muted">Posted by: <em>${link.username}</em></small>
+                      ${
+                  link.isPublic
+                    ? '<span class="badge text-success badge-success ml-2">Public</span>'
+                    : '<span class="badge text-danger badge-secondary ml-2">Private</span>'
+                  }
+                </div>
+                <div>
+                  <button class="btn btn-sm btn-warning" id="edit-link-${index}">
+                    <i class="fa fa-pencil" aria-hidden="true"></i>
+                  </button>
+                  <button class="btn btn-sm btn-danger" id="delete-link-${index}">
+                    <i class="fa fa-trash" aria-hidden="true"></i>
+                  </button>
+                </div>
+              </div>
+              <div class="card-body">
+                ${link.description ? `<p>${link.description}</p>` : ''}
+                <a href="${link.url}" target="_blank" class="btn btn-outline-primary btn-sm">
+                  Visit Link
+                </a>
+              </div>
+              <div class="card-footer d-flex align-items-center" style="background-color: #fafafa;">
+                <button 
+                  class="btn btn-sm btn-link text-danger ${link.hasLiked ? "animate__animated animate__heartBeat" : "animate__animated animate__swing"}" 
+                  id="like-link-${index}" 
+                  style="text-decoration: none;"
+                >
+                  ${link.hasLiked ? `<i class="fa fa-heart"></i>` : `<i class="fa fa-heart-o"></i>`}
+                </button>
+                <span class="ml-2">${link.likeCount} Likes</span>
+              </div>
+            </div>
+          `;
+        }).join('');
     
         const detailsContainer = document.getElementById("movie-details");
         const detailsHTML = `
