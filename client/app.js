@@ -205,7 +205,7 @@ class MovieDetailsAPI {
               </div>
               <div class="card-footer d-flex align-items-center" style="background-color: #fafafa;">
                 <button 
-                  class="btn btn-sm btn-link text-danger ${link.hasLiked ? "animate__animated animate__heartBeat" : "animate__animated animate__swing"}" 
+                  class="btn btn-sm btn-link text-danger ${link.hasLiked ? "animate__animated animate__heartBeat" : ""}" 
                   id="like-link-${index}" 
                   style="text-decoration: none;"
                 >
